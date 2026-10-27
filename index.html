@@ -201,21 +201,22 @@ async function fetchRates(){
 
 /* ============ AI (Google Apps Script → Gemini) ============ */
 const ready = () => !!(st.cfg.url && st.cfg.token);
-async function callAI(payload, ms=120000){
-  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), ms);
+let scanAC = null, tick = null;
+async function callAI(payload, ms=90000){
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), ms); if (payload.action === 'menu') scanAC = ac;
   try {
     const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, token:st.cfg.token}), signal:ac.signal});
     let d; try { d = await r.json(); } catch { throw new Error('ลิงก์ Apps Script ไม่ถูกต้อง หรือยังไม่ได้ Deploy แบบ Anyone'); }
     if (!d.ok) throw new Error(d.error || 'เกิดข้อผิดพลาด');
     return d;
   } catch (e) {
-    if (e.name === 'AbortError') throw new Error('ใช้เวลานานเกินไป ลองใหม่ หรือถ่ายทีละครึ่งหน้า');
+    if (e.name === 'AbortError') throw new Error(ac.userCancel ? 'ยกเลิกแล้ว' : 'ใช้เวลานานเกินไป ลองใหม่ หรือถ่ายให้ใกล้ขึ้น/ทีละส่วน');
     if (!navigator.onLine) throw new Error('ไม่มีอินเทอร์เน็ต การแปลต้องใช้เน็ต');
     if (e instanceof TypeError) throw new Error('เชื่อมต่อไม่ได้ เช็กเน็ตหรือลิงก์ Apps Script');
     throw e;
   } finally { clearTimeout(tm); }
 }
-function compress(file, max=1600, q=.82){
+function compress(file, max=1280, q=.78){
   return new Promise((res, rej) => { const fr = new FileReader();
     fr.onload = () => { const im = new Image();
       im.onload = () => { const s = Math.min(1, max / Math.max(im.width, im.height)), w = Math.round(im.width * s), h = Math.round(im.height * s);
@@ -229,17 +230,22 @@ async function doScan(file){
   if (busy) return; if (!ready()) { go('settings'); return; }
   const append = pendingAppend && scan; pendingAppend = false;
   let img; try { img = await compress(file); } catch (e) { toast(e.message, 'bad'); return; }
+  runScan(img, append);
+}
+async function runScan(img, append){
   const c = ctx(); busy = true;
   if (!append) { scan = {id:uid(), at:Date.now(), mode:st.mode, country:c.country, curr:c.curr, lang:'', note:'', items:[], qty:{}, imgs:[], saved:false}; }
-  scan.imgs.push(img); scan.loading = true; go('result');
+  scan.imgs.push(img); scan.loading = true; scan.t0 = Date.now(); go('result');
+  tick = setInterval(() => { const el = $('#elapsed'); if (el) el.textContent = Math.round((Date.now() - scan.t0) / 1000) + ' วินาที'; }, 1000);
   try {
     const d = await callAI({action:'menu', mode:scan.mode, image:img.split(',')[1], mime:'image/jpeg', country:c.C[1] + ' (' + c.country + ')', currency:c.curr, diet:scan.mode === 'menu' ? dietText() : ''});
     if (d.kind === 'other' && !d.items.length) { scan.err = d.note || (scan.mode === 'menu' ? 'ไม่เจอเมนูในรูปนี้ ลองถ่ายใหม่ให้เห็นตัวหนังสือชัดๆ' : 'ไม่เจอตัวหนังสือในรูปนี้'); }
     else { scan.err = ''; scan.items.push(...d.items); scan.lang = scan.lang || d.lang || ''; scan.note = [scan.note, d.note].filter(Boolean).join(' · '); }
     scan.loading = false; saveHist();
-    if (d.items.length) toast(`อ่านได้ ${d.items.length} รายการ`);
-  } catch (e) { scan.loading = false; scan.err = e.message; if (!scan.items.length) scan.imgs.pop(); }
-  busy = false; render();
+    if (d.items.length) toast(`อ่านได้ ${d.items.length} รายการ ใน ${Math.round((Date.now() - scan.t0) / 1000)} วินาที`);
+    if (!d.version || d.version < 2) scan.old = true;
+  } catch (e) { scan.loading = false; scan.err = e.message; scan.retry = img; scan.retryAppend = append; scan.imgs.pop(); }
+  busy = false; clearInterval(tick); scanAC = null; render();
 }
 function saveHist(){
   if (!scan || !scan.items.length) return;
@@ -304,8 +310,11 @@ function vResult(){
   const c = scan, C = COUNTRIES[c.country] || COUNTRIES.OTHER, rate = rateFor(c.curr), isMenu = c.mode === 'menu';
   let h = `<div class="row" style="margin-bottom:10px"><button class="btn ghost sm" data-act="home">← กลับ</button><span class="grow"></span><span class="muted small">${C[0]} ${esc(C[1])} · ${isMenu ? 'เมนู' : 'ป้าย'}</span></div>`;
   if (c.imgs.length) h += `<div class="row" style="gap:6px;margin-bottom:10px;overflow-x:auto">${c.imgs.map((s, i) => `<img class="photo" src="${s}" data-act="zoom" data-i="${i}" alt="รูปที่ ${i + 1}" style="${c.imgs.length > 1 ? 'width:46%;flex-shrink:0' : ''}">`).join('')}</div>`;
-  if (c.loading) h += `<div class="card" style="text-align:center"><div class="spin"></div><b style="display:block;margin-top:12px">กำลังอ่าน${isMenu ? 'เมนู' : 'ป้าย'}...</b><div class="muted small">ใช้เวลาราว 10–30 วินาที อย่าเพิ่งปิดแอป</div></div>`;
+  if (c.loading) h += `<div class="card" style="text-align:center"><div class="spin"></div><b style="display:block;margin-top:12px">กำลังอ่าน${isMenu ? 'เมนู' : 'ป้าย'}... <span id="elapsed" class="num">${Math.round((Date.now() - (c.t0 || Date.now())) / 1000)} วินาที</span></b><div class="muted small">ปกติ 5–20 วินาที ขึ้นกับเน็ตและความยาวข้อความ</div><button class="btn ghost sm mt" data-act="cancelScan">ยกเลิก</button></div>`;
   if (c.err) h += `<div class="alert bad" style="margin-bottom:10px">⚠️ ${esc(c.err)}</div>`;
+  if (c.err && c.retry) h += `<button class="btn pri block" style="margin-bottom:8px" data-act="retryScan">🔄 ลองรูปเดิมอีกครั้ง</button>`;
+  if (c.err && !c.items.length) h += `<a class="btn ghost block" style="margin-bottom:10px" href="https://translate.google.com/?sl=auto&tl=th&op=images" target="_blank" rel="noopener">🌐 ใช้ Google Translate (กล้อง) แทน</a>`;
+  if (c.old) h += `<div class="alert warn" style="margin-bottom:10px">โค้ด Apps Script ยังเป็นเวอร์ชันเก่า (ช้า) อัปเดตตาม README จะเร็วขึ้นมาก</div>`;
   if (c.note) h += `<div class="alert info" style="margin-bottom:10px">💡 ${esc(c.note)}</div>`;
   if (!c.items.length) return h + (c.loading ? '' : `<button class="btn pri block" data-act="home">ถ่ายใหม่</button>`);
   const hasDiet = isMenu && DIETS.some(([k]) => st.diet[k]);
@@ -316,7 +325,7 @@ function vResult(){
     if (hasDiet && ((filter === 'ok' && lv) || (filter === 'warn' && !lv))) return '';
     const q = c.qty[i] || 0, why = conflict(it).map(x => x[1]);
     return `<div class="it ${lv === 2 ? 'bad' : lv === 1 ? 'warn' : ''}"><div class="row" style="align-items:flex-start">
-      <div class="grow"><span class="th">${esc(it.th || it.orig)}</span><div class="orig" lang="${esc(c.lang)}">${esc(it.orig)}</div>${it.reading ? `<div class="rd">อ่านว่า ${esc(it.reading)}</div>` : ''}</div>
+      <div class="grow"><span class="th"${!isMenu && (it.th || '').length > 60 ? ' style="font-weight:500;font-size:15.5px"' : ''}>${esc(it.th || it.orig)}</span><div class="orig" lang="${esc(c.lang)}">${esc(it.orig)}</div>${it.reading ? `<div class="rd">อ่านว่า ${esc(it.reading)}</div>` : ''}</div>
       ${it.price ? `<div class="pr"><b class="num">${money(it.price, c.curr)}</b>${rate && c.curr !== 'THB' ? `<span class="muted small num">≈ ${money(it.price * rate)}</span>` : ''}</div>` : ''}</div>
       ${it.desc ? `<div class="desc">${esc(it.desc)}</div>` : ''}
       ${lv ? `<div class="small" style="font-weight:700;color:${lv === 2 ? 'var(--bad)' : 'var(--warn)'};margin-top:4px">${lv === 2 ? '⛔' : '⚠️'} ${esc(why.join(' · '))}</div>` : ''}
@@ -473,6 +482,8 @@ const A = {
     const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกดใช้การตั้งค่านี้\n' + link;
     if (navigator.share) { try { await navigator.share({title:'แปลเมนู', text}); return; } catch {} }
     try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทาง LINE ได้'); } catch { toast('คัดลอกไม่ได้', 'bad'); } },
+  retryScan(){ if (busy || !scan || !scan.retry) return; const img = scan.retry, ap = scan.retryAppend; scan.retry = null; scan.err = ''; runScan(img, ap); },
+  cancelScan(){ if (scanAC) { scanAC.userCancel = true; scanAC.abort(); } },
   async quickTok(){ const token = $('#hTok').value.trim(), s = $('#hStatus'); if (!token) { s.textContent = 'ใส่รหัสลับก่อน'; return; }
     const prev = st.cfg; st.cfg = {url:prev.url, token}; s.textContent = '⏳ กำลังทดสอบ...';
     try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์ Apps Script ไม่ใช่ของแอปแปลเมนู');

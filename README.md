@@ -38,6 +38,13 @@ API key อยู่ใน Google Apps Script เท่านั้น ไม่
 
 ถ้าแก้โค้ด Apps Script ภายหลัง: Deploy → Manage deployments → แก้ไข → Version: New version (ลิงก์เดิมใช้ต่อได้)
 
+## อัปเดตโค้ด Apps Script (เมื่อแอปบอกว่าโค้ดเก่า)
+1. เปิดโปรเจกต์ใน script.google.com → ลบโค้ดเดิม → วางโค้ดใหม่จาก `apps-script/Code.gs` → กด 💾
+2. Deploy → Manage deployments → ✏️ (แก้ไข) → Version: **New version** → Deploy (ลิงก์ /exec เดิมใช้ต่อได้)
+3. (ไม่บังคับ) เลือก `testSetup` → Run ดูว่าโมเดลตอบภายในกี่วินาที
+
+โค้ดเวอร์ชัน 2 เร็วกว่าเดิมมาก: ให้ AI ตอบสั้นลง ปิดการ "คิด" ของโมเดล ป้ายใช้โมเดล lite และไม่ลองซ้ำเมื่อรอนานแล้ว
+
 ## เชื่อมกับ TripBudget
 ใช้ localStorage ร่วมกันบน `focus2541.github.io` (ไม่ผ่านอินเทอร์เน็ต)
 - อ่าน `tb_active` (ทริปที่เปิดอยู่: ประเทศ สกุลเงิน เรต) เพื่อเลือกประเทศและแปลงราคาเป็นบาท
