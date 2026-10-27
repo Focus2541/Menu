@@ -1,6 +1,6 @@
 /**
  * แปลเมนู — ตัวกลางอ่านเมนู/ป้ายด้วย Gemini (API key อยู่ที่นี่ ไม่อยู่ในแอป)
- * เวอร์ชันโค้ด 2: ตอบสั้นลง ปิดการคิดยาวของโมเดล ไม่ลองซ้ำเมื่อรอนานแล้ว (เร็วขึ้นมาก)
+ * เวอร์ชันโค้ด 3: ตอบสั้นลง ลดการคิดของโมเดล (เลือกค่าที่รุ่นนั้นรับได้เอง) ไม่ลองซ้ำเมื่อรอนานแล้ว
  *
  * ตั้งค่าใน Project Settings → Script properties:
  *   GEMINI_API_KEY  (จำเป็น)  key จาก https://aistudio.google.com/apikey (ใช้ key เดียวกับแอปกินพอดีได้)
@@ -13,7 +13,7 @@
  *   Execute as: Me   |   Who has access: Anyone
  */
 
-const CODE_VERSION = 2;
+const CODE_VERSION = 3;
 const MAX_IMAGE_CHARS = 5 * 1024 * 1024;
 const ALLERGENS = ['ไข่', 'นม', 'ถั่วลิสง', 'ถั่วเปลือกแข็ง', 'แป้งสาลี', 'ถั่วเหลือง', 'กุ้ง/ปู', 'หอย', 'ปลา', 'งา'];
 // แท็กส่วนผสมแบบสั้น (ตอบสั้น = เร็ว) "?" = อาจมี
@@ -129,33 +129,38 @@ function ask_(body, model, props) {
 }
 
 /**
- * ปิดการ "คิด" ของโมเดลเพื่อความเร็ว (thinkingBudget 0) ถ้าโมเดลไม่รองรับค่านี้จะลองใหม่แบบไม่ใส่
+ * ลดการ "คิด" ของโมเดลเพื่อความเร็ว แต่ละรุ่นรับค่าไม่เหมือนกัน จึงลองทีละแบบ:
+ *   thinkingLevel low (Gemini 3) → thinkingBudget 0 (Gemini 2.5) → ไม่ใส่
+ * แบบที่ใช้ได้จะจำไว้ 6 ชม. ครั้งต่อไปไม่ต้องลองใหม่
  * ลองซ้ำเฉพาะตอนล้มเร็ว (คนใช้เยอะ) ไม่ลองซ้ำถ้ารอนานแล้ว จะได้ไม่ค้างเกินเวลา
  */
+const THINK = [{ thinkingLevel: 'low' }, { thinkingBudget: 0 }, null];
 function callGemini_(body, model, props) {
   const key = props.getProperty('GEMINI_API_KEY') || '';
   if (!key) throw new Error('ยังไม่ได้ตั้ง GEMINI_API_KEY ใน Script properties');
-  const t0 = Date.now();
+  const cache = CacheService.getScriptCache(), t0 = Date.now();
   const models = [model, 'gemini-flash-lite-latest'].filter(function (m, i, a) { return a.indexOf(m) === i; });
   let last = { code: 0, data: {}, model: model };
   for (let m = 0; m < models.length; m++) {
-    let think = true;
-    for (let attempt = 0; attempt < 3; attempt++) {
+    const ck = 'think_' + models[m];
+    let v = Number(cache.get(ck) || 0);
+    while (v < THINK.length) {
       const b = JSON.parse(JSON.stringify(body));
-      if (think) b.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+      b.generationConfig = b.generationConfig || {};
+      if (THINK[v]) b.generationConfig.thinkingConfig = THINK[v];
       const res = UrlFetchApp.fetch(
         'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(models[m]) + ':generateContent',
         { method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, payload: JSON.stringify(b), muteHttpExceptions: true });
       let data = {};
       try { data = JSON.parse(res.getContentText() || '{}'); } catch (e) {}
-      last = { code: res.getResponseCode(), data: data, model: models[m] };
-      const msg = (data.error && data.error.message) || '';
-      if (last.code === 400 && think && /think/i.test(msg)) { think = false; continue; } // โมเดลนี้ปิดการคิดไม่ได้
-      if (last.code === 200 || (last.code !== 503 && last.code !== 429 && last.code !== 500)) return last;
-      if (Date.now() - t0 > 25000) return last; // รอนานแล้ว ไม่ลองซ้ำ
-      Utilities.sleep(1200);
-      break; // ไปโมเดลถัดไป
+      last = { code: res.getResponseCode(), data: data, model: models[m], think: THINK[v] };
+      if (last.code === 400 && v < THINK.length - 1) { v++; continue; } // รุ่นนี้ไม่รับค่านี้ ลองแบบถัดไป
+      if (last.code === 200) { cache.put(ck, String(v), 21600); return last; }
+      break;
     }
+    if (last.code !== 503 && last.code !== 429 && last.code !== 500) return last;
+    if (Date.now() - t0 > 25000) return last; // รอนานแล้ว ไม่ลองซ้ำ
+    Utilities.sleep(1000);
   }
   return last;
 }
@@ -186,7 +191,7 @@ function testSetup() {
   [props.getProperty('MODEL') || 'gemini-flash-latest', props.getProperty('SIGN_MODEL') || 'gemini-flash-lite-latest'].forEach(function (m) {
     const t0 = Date.now();
     const r = callGemini_({ contents: [{ parts: [{ text: 'ตอบคำว่า พร้อม' }] }], generationConfig: {} }, m, props);
-    Logger.log(m + ' → ' + r.model + ': HTTP ' + r.code + ' ใน ' + ((Date.now() - t0) / 1000).toFixed(1) + ' วินาที');
+    Logger.log(m + ' → ' + r.model + ' ' + JSON.stringify(r.think || 'ไม่ตั้งค่าคิด') + ': HTTP ' + r.code + ' ใน ' + ((Date.now() - t0) / 1000).toFixed(1) + ' วินาที');
     if (r.code !== 200) Logger.log('   ' + JSON.stringify(r.data).slice(0, 300));
   });
   Logger.log('เวอร์ชันโค้ด ' + CODE_VERSION + ' · ถ้าขึ้น HTTP 200 พร้อมใช้งาน');
