@@ -203,13 +203,19 @@ async function fetchRates(){
 const ready = () => !!(st.cfg.url && st.cfg.token);
 // สิทธิ์ของเครื่องนี้: new ยังไม่ขอ · pending รออนุมัติ · approved/owner ใช้ได้ · denied/off ใช้ไม่ได้ · legacy สคริปต์เก่าที่ไม่มีระบบอนุมัติ
 const canScan = () => ready() && ['approved', 'owner', 'legacy'].includes(st.access);
-if (!st.dev) { const a = new Uint8Array(16); crypto.getRandomValues(a); st.dev = 'd' + [...a].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 23); save(); }
+// รหัสเครื่องและรหัสผู้ดูแลใช้ร่วมกับ TripBudget (โดเมนเดียวกัน) อนุมัติครั้งเดียวใช้ได้ทั้งสองแอป
+const SHARED_DEV = 'f2541_device', SHARED_ADMIN = 'f2541_admin';
+(() => { let d = ''; try { d = localStorage.getItem(SHARED_DEV) || ''; } catch {}
+  if (!d) { d = st.dev; if (!d) { const a = new Uint8Array(16); crypto.getRandomValues(a); d = 'd' + [...a].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 23); } try { localStorage.setItem(SHARED_DEV, d); } catch {} }
+  if (st.dev !== d) { st.dev = d; save(); }
+  if (!st.cfg.admin) { try { const a = localStorage.getItem(SHARED_ADMIN); if (a) st.cfg.admin = a; } catch {} } })();
+const setAdmin = a => { try { if (a) localStorage.setItem(SHARED_ADMIN, a); else localStorage.removeItem(SHARED_ADMIN); } catch {} };
 const ACCESS_TH = {new:'ยังไม่ได้ขอใช้งาน', pending:'⏳ รอเจ้าของอนุมัติ', approved:'✅ อนุมัติแล้ว', owner:'👑 เจ้าของแอป', denied:'⛔ ไม่อนุมัติ', off:'⛔ ถูกปิดสิทธิ์', legacy:'✅ ใช้ได้'};
 let scanAC = null, tick = null;
 async function callAI(payload, ms=90000){
   const ac = new AbortController(), tm = setTimeout(() => ac.abort(), ms); if (payload.action === 'menu') scanAC = ac;
   try {
-    const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, token:st.cfg.token, device:st.dev, admin:st.cfg.admin || ''}), signal:ac.signal});
+    const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, app:'menu', token:st.cfg.token, device:st.dev, admin:st.cfg.admin || ''}), signal:ac.signal});
     let d; try { d = await r.json(); } catch { throw new Error('ลิงก์ Apps Script ไม่ถูกต้อง หรือยังไม่ได้ Deploy แบบ Anyone'); }
     if (d.access && d.access !== st.access) { st.access = d.access; save(); }
     if (!d.ok) throw new Error(d.error || 'เกิดข้อผิดพลาด');
@@ -497,7 +503,7 @@ const A = {
     if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { s.textContent = '❌ ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/'; return; }
     if (!token) { s.textContent = '❌ ใส่รหัสลับด้วย'; return; }
     const prev = st.cfg; st.cfg = {url, token, admin:$('#cAdm').value.trim()}; s.textContent = '⏳ กำลังทดสอบ...';
-    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู');
+    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู'); if (d.token === false) throw new Error('รหัสลับไม่ถูกต้อง'); setAdmin(st.cfg.admin);
       st.access = d.access || 'legacy'; save(); s.textContent = '✅ เชื่อมต่อได้ · ' + ACCESS_TH[st.access]; toast(canScan() ? 'ตั้งค่าเรียบร้อย' : 'เชื่อมต่อได้ ต้องขอใช้งานก่อน'); setTimeout(() => go('home'), 700); }
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
   async shareCfg(){ const link = location.origin + location.pathname + '#setup=' + btoa(unescape(encodeURIComponent(JSON.stringify({u:st.cfg.url, t:st.cfg.token})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -508,7 +514,7 @@ const A = {
   cancelScan(){ if (scanAC) { scanAC.userCancel = true; scanAC.abort(); } },
   async quickTok(){ const token = $('#hTok').value.trim(), s = $('#hStatus'); if (!token) { s.textContent = 'ใส่รหัสลับก่อน'; return; }
     const prev = st.cfg; st.cfg = {...prev, token}; s.textContent = '⏳ กำลังทดสอบ...';
-    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์ Apps Script ไม่ใช่ของแอปแปลเมนู');
+    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์ Apps Script ไม่ใช่ของแอปแปลเมนู'); if (d.token === false) throw new Error('รหัสลับไม่ถูกต้อง');
       st.access = d.access || 'legacy'; save(); toast(canScan() ? 'พร้อมใช้งาน ถ่ายเมนูได้เลย' : 'รหัสถูกต้อง ขอใช้งานต่อได้เลย'); render(); }
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
   async register(){ const name = $('#aName').value.trim(), s = $('#aStatus'); if (!name) { s.textContent = 'ใส่ชื่อก่อน'; $('#aName').focus(); return; }

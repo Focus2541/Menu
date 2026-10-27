@@ -1,6 +1,7 @@
 /**
  * แปลเมนู — ตัวกลางอ่านเมนู/ป้ายด้วย Gemini (API key อยู่ที่นี่ ไม่อยู่ในแอป)
- * เวอร์ชันโค้ด 4: ต้องให้เจ้าของอนุมัติรายเครื่องก่อนใช้ (ส่งต่อลิงก์ไปก็ใช้ไม่ได้ถ้ายังไม่อนุมัติ)
+ * เวอร์ชันโค้ด 5: ต้องให้เจ้าของอนุมัติรายเครื่องก่อนใช้ ใช้รายชื่อเดียวกันทั้งแอปแปลเมนูและ TripBudget
+ *   (ขอใช้งาน/เช็กสถานะไม่ต้องใช้รหัสลับ ส่วนการแปลด้วย AI ต้องมีทั้งรหัสลับและการอนุมัติ)
  *
  * ตั้งค่าใน Project Settings → Script properties:
  *   GEMINI_API_KEY  (จำเป็น)  key จาก https://aistudio.google.com/apikey
@@ -20,7 +21,8 @@
  *   Execute as: Me   |   Who has access: Anyone
  */
 
-const CODE_VERSION = 4;
+const CODE_VERSION = 5;
+const APPS = { menu: 'แปลเมนู', tripbudget: 'TripBudget' };
 const MAX_IMAGE_CHARS = 5 * 1024 * 1024;
 const ALLERGENS = ['ไข่', 'นม', 'ถั่วลิสง', 'ถั่วเปลือกแข็ง', 'แป้งสาลี', 'ถั่วเหลือง', 'กุ้ง/ปู', 'หอย', 'ปลา', 'งา'];
 // แท็กส่วนผสมแบบสั้น (ตอบสั้น = เร็ว) "?" = อาจมี
@@ -36,18 +38,21 @@ function doPost(e) {
   try {
     const props = PropertiesService.getScriptProperties();
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    if (!props.getProperty('APP_TOKEN') || req.token !== props.getProperty('APP_TOKEN')) {
+    const gate = req.action === 'ping' || req.action === 'register'; // ขอใช้งาน/เช็กสถานะ ไม่ต้องใช้รหัสลับ
+    if (!gate && (!props.getProperty('APP_TOKEN') || req.token !== props.getProperty('APP_TOKEN'))) {
       return json_({ ok: false, error: 'รหัสลับไม่ถูกต้อง' });
     }
+    const appName = APPS[req.app] ? req.app : 'menu';
+    const tokenOk = !!props.getProperty('APP_TOKEN') && req.token === props.getProperty('APP_TOKEN');
     const admin = !!props.getProperty('ADMIN_TOKEN') && req.admin === props.getProperty('ADMIN_TOKEN');
     const dev = String(req.device || '').replace(/[^\w-]/g, '').slice(0, 40);
     if (!admin && dev.length < 12) return json_({ ok: false, error: 'แอปเวอร์ชันเก่า โหลดหน้าแอปใหม่แล้วลองอีกครั้ง', access: 'new' });
 
     if (req.action === 'ping') {
       const d = admin ? null : findDev_(dev);
-      return json_({ ok: true, app: 'menu', version: CODE_VERSION, access: admin ? 'owner' : d ? d.code : 'new', name: d ? d.name : '' });
+      return json_({ ok: true, app: 'menu', version: CODE_VERSION, access: admin ? 'owner' : d ? d.code : 'new', name: d ? d.name : '', token: tokenOk });
     }
-    if (req.action === 'register') return json_(register_(dev, req.name, props));
+    if (req.action === 'register') return json_(register_(dev, req.name, props, appName));
     if (req.action !== 'menu') return json_({ ok: false, error: 'ไม่รู้จักคำสั่ง' });
 
     if (!admin) {
@@ -112,7 +117,7 @@ function findDev_(dev) {
   }
   return null;
 }
-function register_(dev, name, props) {
+function register_(dev, name, props, appName) {
   name = String(name || '').replace(/[<>]/g, '').trim().slice(0, 40);
   if (!name) return { ok: false, error: 'ใส่ชื่อก่อน' };
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
@@ -124,8 +129,8 @@ function register_(dev, name, props) {
     const n = Number(cache.get(k) || 0); if (n >= 10) return { ok: false, error: 'มีคำขอเยอะเกินไป ลองใหม่ภายหลัง' };
     cache.put(k, String(n + 1), 3700);
     const key = Utilities.getUuid().replace(/-/g, '');
-    devSheet_().appendRow([dev, name, ST.pending, new Date(), '', 0, '', 0, '', '', key]);
-    notify_(dev, name, key, props);
+    devSheet_().appendRow([dev, name, ST.pending, new Date(), '', 0, '', 0, '', 'ขอจาก ' + APPS[appName], key]);
+    notify_(dev, name, key, props, appName);
     return { ok: true, access: 'pending', name: name };
   } finally { lock.releaseLock(); }
 }
@@ -137,14 +142,14 @@ function countUse_(dev) {
     sh.getRange(d.row, 5, 1, 4).setValues([[new Date(), d.todayCount + 1, today_(), Number(sh.getRange(d.row, 8).getValue() || 0) + 1]]);
   } finally { lock.releaseLock(); }
 }
-function notify_(dev, name, key, props) {
+function notify_(dev, name, key, props, appName) {
   const to = props.getProperty('OWNER_EMAIL') || Session.getEffectiveUser().getEmail();
   const url = ScriptApp.getService().getUrl();
   if (!to || !url) return;
   const link = function (a) { return url + '?a=' + a + '&d=' + encodeURIComponent(dev) + '&s=' + key; };
   MailApp.sendEmail({
-    to: to, subject: 'แปลเมนู: "' + name + '" ขอใช้งาน',
-    htmlBody: '<p style="font-size:16px"><b>' + name + '</b> ขอใช้แอปแปลเมนู</p>' +
+    to: to, subject: APPS[appName || 'menu'] + ': "' + name + '" ขอใช้งาน',
+    htmlBody: '<p style="font-size:16px"><b>' + name + '</b> ขอใช้แอป ' + APPS[appName || 'menu'] + ' (อนุมัติแล้วใช้ได้ทั้ง TripBudget และแปลเมนู)</p>' +
       '<p><a href="' + link('approve') + '" style="background:#16834a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">✅ อนุมัติ</a> &nbsp; ' +
       '<a href="' + link('deny') + '" style="background:#cf3434;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">⛔ ไม่อนุมัติ</a></p>' +
       '<p style="color:#777;font-size:13px">ถ้าไม่รู้จักชื่อนี้ แปลว่าลิงก์ตั้งค่าถูกส่งต่อ กดไม่อนุมัติได้เลย · จัดการทั้งหมดได้ที่ชีต "' + DEV_SHEET + '"</p>'
