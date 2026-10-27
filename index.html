@@ -176,6 +176,7 @@ function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return t
 /* ============ STATE ============ */
 let st = Object.assign({cfg:{url:'', token:''}, diet:{}, mode:'menu', country:'', curr:'', lastPay:''}, lsGet(KEY, {}));
 st.diet = st.diet || {};
+if (!st.cfg.url && self.AI_URL) st.cfg.url = self.AI_URL;
 const save = () => lsSet(KEY, st);
 let hist = lsGet(HKEY, []); if (!Array.isArray(hist)) hist = [];
 let rates = lsGet(RKEY, {rates:{}, at:0});
@@ -251,7 +252,10 @@ function saveHist(){
 function vHome(){
   const c = ctx(), t = c.t;
   let h = '';
-  if (!ready()) h += `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>👋 ตั้งค่าก่อนใช้ครั้งแรก</h2></div>
+  if (!ready()) h += st.cfg.url ? `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>🔑 ใส่รหัสลับก่อนใช้ครั้งแรก</h2></div>
+    <div class="small" style="color:var(--ink2)">ขอรหัสลับจากเจ้าของแอป หรือถ้าได้ "ลิงก์ตั้งค่า" มา กดลิงก์นั้นได้เลย</div>
+    <div class="row mt"><input id="hTok" type="password" placeholder="รหัสลับ" class="grow" autocomplete="off"><button class="btn pri" data-act="quickTok">เริ่มใช้</button></div><div class="muted small mt-s" id="hStatus"></div></div>`
+    : `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>👋 ตั้งค่าก่อนใช้ครั้งแรก</h2></div>
     <div class="small" style="color:var(--ink2)">แอปนี้ใช้ AI (Gemini) อ่านเมนู ต้องใส่ลิงก์ Apps Script และรหัสลับก่อน ถ้าเพื่อนส่ง "ลิงก์ตั้งค่า" มา กดลิงก์นั้นได้เลย</div>
     <button class="btn pri sm mt" data-act="settings">ไปตั้งค่า</button></div>`;
   h += `<div class="card flat"><div class="row"><span style="font-size:28px">${c.C[0]}</span><div class="grow"><b>${esc(c.C[1])}</b> · <span class="num">${c.curr}</span>${c.rate && c.curr !== 'THB' ? ` <span class="muted small">· 1 ${c.curr} ≈ ${+c.rate.toPrecision(3)} ฿</span>` : ''}
@@ -469,6 +473,11 @@ const A = {
     const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกดใช้การตั้งค่านี้\n' + link;
     if (navigator.share) { try { await navigator.share({title:'แปลเมนู', text}); return; } catch {} }
     try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทาง LINE ได้'); } catch { toast('คัดลอกไม่ได้', 'bad'); } },
+  async quickTok(){ const token = $('#hTok').value.trim(), s = $('#hStatus'); if (!token) { s.textContent = 'ใส่รหัสลับก่อน'; return; }
+    const prev = st.cfg; st.cfg = {url:prev.url, token}; s.textContent = '⏳ กำลังทดสอบ...';
+    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์ Apps Script ไม่ใช่ของแอปแปลเมนู');
+      save(); toast('พร้อมใช้งาน ถ่ายเมนูได้เลย'); render(); }
+    catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
   applyUpdate(){ applyUpdate(); }
 };
 
@@ -481,12 +490,13 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if ((el.id === 'fCam' || el.id === 'fGal') && el.files[0]) { const f = el.files[0]; el.value = ''; doScan(f); return; }
+  if (el.id === 'hTok') return;
   if (el.id === 'cCountry') { st.country = el.value; st.curr = ''; save(); render(); return; }
   if (el.id === 'cCurr') { st.curr = el.value; save(); render(); return; }
 });
 // ยกเลิก "ถ่ายหน้าถัดไป" ถ้าผู้ใช้ปิดกล้องโดยไม่ถ่าย
 window.addEventListener('focus', () => setTimeout(() => { if (!busy) pendingAppend = false; }, 1500));
-document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#big').hidden) { $('#big').hidden = true; return; } if (!$('#lb').hidden) { $('#lb').hidden = true; return; } if (S) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'hTok') { A.quickTok(); return; } if (e.key !== 'Escape') return; if (!$('#big').hidden) { $('#big').hidden = true; return; } if (!$('#lb').hidden) { $('#lb').hidden = true; return; } if (S) closeSheet(); });
 window.addEventListener('storage', e => { if (e.key === TB_ACTIVE) render(); });
 window.addEventListener('online', render); window.addEventListener('offline', render);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') render(); });
