@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>แปลเมนู</title>
+<meta name="description" content="ถ่ายรูปเมนูหรือป้ายภาษาต่างประเทศ แปลเป็นไทย บอกว่ามีหมู เผ็ด หรือของที่แพ้ไหม สั่งอาหารได้ และส่งรายจ่ายเข้า TripBudget">
+<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* White ground, warm orange accent (food), cards like TripBudget so both apps feel like a pair */
+:root{
+  --bg:#ffffff; --soft:#f5f5f4; --soft2:#e9e7e4; --line:#e7e4e0; --line2:#d3cfca;
+  --ink:#1c1917; --ink2:#57534e; --ink3:#8a837c;
+  --acc:#c2410c; --acc-soft:#fff1e8; --acc-ink:#9a3412;
+  --good:#16834a; --good-soft:#e5f5ec; --warn:#b86200; --warn-soft:#fff3e0; --bad:#cf3434; --bad-soft:#fdecec;
+  --f-body:'IBM Plex Sans Thai',system-ui,-apple-system,'Segoe UI','Noto Sans JP','Noto Sans KR','Noto Sans SC',sans-serif;
+  --f-num:'IBM Plex Mono',ui-monospace,monospace;
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{font-family:var(--f-body);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.55;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 96px);-webkit-tap-highlight-color:transparent}
+body.lock{overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;font-size:16px;color:var(--ink);width:100%;background:#fff;border:1px solid var(--line2);border-radius:10px;padding:10px 12px;outline:none;min-height:44px}
+input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 3px var(--acc-soft)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink2);font-weight:500}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.2px}
+h1{font-size:22px;line-height:1.25}h2{font-size:15px;font-weight:700}
+.muted{color:var(--ink3);font-size:13px}.small{font-size:12.5px}
+.top{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:calc(8px + env(safe-area-inset-top,0px)) 8px 8px 16px;display:flex;align-items:center;gap:8px}
+.logo{font-weight:700;font-size:17px;white-space:nowrap}.logo b{color:var(--acc)}
+#ctx{flex:1;min-width:0;text-align:right;font-size:13px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ib{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}.ib:active{background:var(--soft)}
+main{max-width:720px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card.flat{background:var(--soft);border-color:transparent}
+.ch{display:flex;align-items:center;gap:8px;margin-bottom:10px}.ch h2{flex:1}
+.row{display:flex;align-items:center;gap:8px}.wrap{flex-wrap:wrap}.grow{flex:1;min-width:0}.right{text-align:right}.mt{margin-top:12px}.mt-s{margin-top:6px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:12px;font-weight:600;font-size:14.5px;white-space:nowrap;min-height:44px;text-decoration:none}
+.btn.pri{background:var(--acc);color:#fff}.btn.pri:active{background:var(--acc-ink)}
+.btn.ghost{border:1px solid var(--line2);background:#fff;color:var(--ink2)}
+.btn.sm{min-height:36px;padding:7px 12px;font-size:13.5px;border-radius:10px}
+.btn.block{width:100%}.btn:disabled{opacity:.45}
+.link{color:var(--acc-ink);font-weight:600;text-decoration:underline;font-size:13px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{white-space:nowrap;border:1px solid var(--line2);border-radius:99px;padding:7px 13px;font-size:13.5px;background:#fff;color:var(--ink2);min-height:36px;display:inline-flex;align-items:center;gap:6px}
+.chip.on{border-color:var(--acc);background:var(--acc-soft);color:var(--acc-ink);font-weight:600}
+.seg{display:flex;background:var(--soft2);border-radius:10px;padding:3px}.seg button{flex:1;padding:8px 6px;border-radius:8px;font-size:14px;font-weight:600;color:var(--ink2);min-height:40px}.seg button.on{background:#fff;color:var(--acc-ink);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.alert{border-radius:10px;padding:10px 12px;font-size:13.5px}.alert.good{background:var(--good-soft);color:var(--good)}.alert.warn{background:var(--warn-soft);color:var(--warn)}.alert.bad{background:var(--bad-soft);color:var(--bad)}.alert.info{background:var(--soft);color:var(--ink2)}
+.empty{text-align:center;padding:30px 16px;color:var(--ink3)}
+.shoot{display:grid;grid-template-columns:1.4fr 1fr;gap:10px}
+.shoot label{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border-radius:18px;min-height:132px;font-weight:700;font-size:16px;cursor:pointer;text-align:center;padding:10px}
+.shoot label span{font-size:40px;line-height:1}
+.shoot .cam{background:var(--acc);color:#fff}.shoot .gal{background:var(--acc-soft);color:var(--acc-ink)}
+.hist{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--line);border-radius:12px;margin-bottom:6px;width:100%;text-align:left;background:#fff}
+.hist .ic{width:38px;height:38px;border-radius:10px;background:var(--soft);display:grid;place-items:center;font-size:19px;flex-shrink:0}
+/* result items */
+.it{border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:8px;background:#fff}
+.it.warn{border-color:#f0c48a;background:#fffbf5}.it.bad{border-color:#f1b0b0;background:#fffafa}
+.it .th{font-size:16.5px;font-weight:700;line-height:1.35;display:block;word-break:break-word}
+.it .orig{font-size:15px;color:var(--ink2);word-break:break-word}
+.it .rd{font-size:12.5px;color:var(--ink3)}
+.it .desc{font-size:13.5px;color:var(--ink2);margin-top:4px}
+.it .pr{text-align:right;flex-shrink:0;max-width:40%}.it .pr b{display:block;font-size:16px}
+.fl{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.fl span{font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--ink2);white-space:nowrap}
+.fl .bad{background:var(--bad-soft);color:var(--bad)}.fl .warn{background:var(--warn-soft);color:var(--warn)}.fl .good{background:var(--good-soft);color:var(--good)}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.qty button{width:38px;height:36px;font-size:18px;font-weight:700;color:var(--acc-ink)}.qty b{min-width:26px;text-align:center;font-family:var(--f-num)}
+.photo{width:100%;max-height:200px;object-fit:cover;border-radius:12px;border:1px solid var(--line);cursor:zoom-in;display:block}
+.basket{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);z-index:60;background:var(--ink);color:#fff;border-radius:16px;padding:10px 10px 10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 10px 28px rgba(0,0,0,.28);max-width:600px;margin:0 auto}
+.basket .btn{background:var(--acc);color:#fff;min-height:42px}
+.spin{width:44px;height:44px;border-radius:50%;border:4px solid var(--acc-soft);border-top-color:var(--acc);animation:sp 1s linear infinite;margin:0 auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* sheet / dialog / big */
+.scrim{position:fixed;inset:0;z-index:100;background:rgba(20,16,12,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:#fff;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:20px 20px 0 0;padding:8px 16px 0}
+.sheet::before{content:"";display:block;width:40px;height:4px;border-radius:4px;background:var(--line2);margin:0 auto 10px}
+@media(min-width:620px){.scrim{align-items:center}.sheet{border-radius:20px}}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}.sh b{font-size:17px}
+.x{width:36px;height:36px;border-radius:50%;background:var(--soft);font-size:15px}
+.sf{position:sticky;bottom:0;background:#fff;display:flex;gap:8px;padding:12px 0 calc(14px + env(safe-area-inset-bottom,0px));margin-top:14px;border-top:1px solid var(--line)}
+.sf .sp{flex:1}
+.oline{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+#big{position:fixed;inset:0;z-index:400;background:#fff;overflow-y:auto;padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(70px + env(safe-area-inset-bottom,0px));cursor:pointer}
+#big .ph{font-size:clamp(26px,8vw,44px);font-weight:700;line-height:1.3;text-align:center;margin:10px 0 4px}
+#big .phs{font-size:15px;color:var(--ink3);text-align:center;margin-bottom:16px}
+#big .ol{font-size:clamp(24px,7vw,40px);font-weight:700;line-height:1.3;padding:12px 0;border-bottom:2px solid var(--line);display:flex;gap:12px;align-items:baseline}
+#big .ol .q{color:var(--acc);font-family:var(--f-num);margin-left:auto;white-space:nowrap}
+#big .ol small{display:block;font-size:14px;color:var(--ink3);font-weight:500}
+#big .ex{font-size:clamp(20px,6vw,30px);font-weight:700;color:var(--bad);text-align:center;margin-top:16px}
+#big .hint{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:0;right:0;text-align:center;font-size:13px;color:var(--ink3)}
+#lb{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.92);display:grid;place-items:center}#lb img{max-width:96vw;max-height:92vh}
+#dlg{z-index:150;align-items:center;padding:16px}
+.dlg{background:#fff;border-radius:18px;padding:18px;width:100%;max-width:380px}
+.dlg h3{font-size:17px;margin-bottom:6px}.dlg .dt{font-size:14.5px;color:var(--ink2);margin-bottom:12px;white-space:pre-wrap}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 90px);z-index:500;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:max-content;max-width:92vw}
+.toast{background:var(--ink);color:#fff;padding:10px 16px;border-radius:99px;font-size:14px;text-align:center}.toast.bad{background:var(--bad)}.toast.warn{background:var(--warn)}
+#updBar{position:fixed;left:12px;right:12px;top:calc(64px + env(safe-area-inset-top,0px));z-index:90;background:var(--ink);color:#fff;border-radius:14px;padding:12px 16px;font-size:14px;cursor:pointer;max-width:560px;margin:0 auto}
+#updBar b{color:#fdba74}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="logo" data-act="home">แปล<b>เมนู</b></button>
+  <div id="ctx"></div>
+  <button class="ib" data-act="settings" aria-label="ตั้งค่า">⚙️</button>
+</header>
+<main id="view"></main>
+<div id="basket"></div>
+<input type="file" id="fCam" accept="image/*" capture="environment" hidden>
+<input type="file" id="fGal" accept="image/*" hidden>
+<div class="scrim" id="sheet" hidden></div>
+<div class="scrim" id="dlg" hidden></div>
+<div id="big" data-act="closeBig" hidden></div>
+<div id="lb" data-act="closeLb" hidden><img id="lbImg" alt="รูปเมนู"></div>
+<div id="updBar" data-act="applyUpdate" hidden>มีเวอร์ชันใหม่ <b>แตะเพื่อโหลดใหม่</b></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="version.js"></script>
+<script>
+'use strict';
+/* ============ DATA ============ */
+const KEY = 'menu_v1', HKEY = 'menu_hist', RKEY = 'menu_rates';
+const TB_ACTIVE = 'tb_active', TB_INBOX = 'tb_inbox', TB_URL = '../tripbudget/';
+// ประเทศ: ธง ชื่อ สกุลเงิน ภาษา (ใช้กับเสียงอ่านและประโยคสั่งอาหาร)
+const COUNTRIES = {
+  JP:['🇯🇵','ญี่ปุ่น','JPY','ja'], KR:['🇰🇷','เกาหลีใต้','KRW','ko'], CN:['🇨🇳','จีน','CNY','zh-Hans'], TW:['🇹🇼','ไต้หวัน','TWD','zh-Hant'],
+  HK:['🇭🇰','ฮ่องกง','HKD','zh-Hant'], VN:['🇻🇳','เวียดนาม','VND','vi'], SG:['🇸🇬','สิงคโปร์','SGD','en'], MY:['🇲🇾','มาเลเซีย','MYR','en'],
+  ID:['🇮🇩','อินโดนีเซีย','IDR','en'], PH:['🇵🇭','ฟิลิปปินส์','PHP','en'], LA:['🇱🇦','ลาว','LAK','en'], KH:['🇰🇭','กัมพูชา','KHR','en'],
+  MM:['🇲🇲','เมียนมา','MMK','en'], IN:['🇮🇳','อินเดีย','INR','en'], AE:['🇦🇪','ยูเออี','AED','en'], GB:['🇬🇧','สหราชอาณาจักร','GBP','en'],
+  EU:['🇪🇺','ยุโรป','EUR','en'], CH:['🇨🇭','สวิตเซอร์แลนด์','CHF','en'], US:['🇺🇸','สหรัฐอเมริกา','USD','en'], CA:['🇨🇦','แคนาดา','CAD','en'],
+  AU:['🇦🇺','ออสเตรเลีย','AUD','en'], NZ:['🇳🇿','นิวซีแลนด์','NZD','en'], TH:['🇹🇭','ไทย','THB','en'], OTHER:['🌍','ประเทศอื่นๆ','USD','en']
+};
+const SYM = {THB:'฿',JPY:'¥',KRW:'₩',CNY:'¥',HKD:'HK$',TWD:'NT$',SGD:'S$',MYR:'RM',VND:'₫',IDR:'Rp',PHP:'₱',INR:'₹',LAK:'₭',KHR:'៛',MMK:'K',USD:'$',EUR:'€',GBP:'£',CHF:'CHF ',AUD:'A$',NZD:'NZ$',CAD:'C$',AED:'AED '};
+const ZERO_DEC = new Set(['JPY','KRW','VND','IDR','LAK','KHR','MMK']);
+const FALLBACK = {USD:32.9,EUR:37.5,JPY:0.22,KRW:0.024,CNY:4.55,HKD:4.2,TWD:1.05,SGD:25.5,MYR:7.6,VND:0.00125,IDR:0.002,PHP:0.57,INR:0.38,LAK:0.0015,KHR:0.0082,MMK:0.0157,GBP:44,CHF:40,AUD:21.5,NZD:19.5,CAD:24,AED:8.96};
+const TTS_LANG = {ja:'ja-JP', ko:'ko-KR', 'zh-Hans':'zh-CN', 'zh-Hant':'zh-TW', vi:'vi-VN', en:'en-US'};
+// ประโยคสำหรับยื่นให้พนักงาน
+const P = {
+  ja:{order:'これをください', noPork:'豚肉は食べられません', noBeef:'牛肉は食べられません', veg:'ベジタリアンです（肉・魚は食べられません）', seafood:'魚介類のアレルギーがあります', nuts:'ナッツ・ピーナッツのアレルギーがあります', spicy:'辛くしないでください', check:'お会計お願いします'},
+  ko:{order:'이거 주세요', noPork:'돼지고기를 못 먹어요', noBeef:'소고기를 못 먹어요', veg:'저는 채식주의자예요', seafood:'해산물 알레르기가 있어요', nuts:'견과류 알레르기가 있어요', spicy:'안 맵게 해 주세요', check:'계산해 주세요'},
+  'zh-Hans':{order:'我要这个', noPork:'我不吃猪肉', noBeef:'我不吃牛肉', veg:'我吃素', seafood:'我对海鲜过敏', nuts:'我对坚果过敏', spicy:'请不要辣', check:'买单'},
+  'zh-Hant':{order:'我要這個', noPork:'我不吃豬肉', noBeef:'我不吃牛肉', veg:'我吃素', seafood:'我對海鮮過敏', nuts:'我對堅果過敏', spicy:'請不要辣', check:'買單'},
+  vi:{order:'Cho tôi món này', noPork:'Tôi không ăn thịt heo', noBeef:'Tôi không ăn thịt bò', veg:'Tôi ăn chay', seafood:'Tôi bị dị ứng hải sản', nuts:'Tôi bị dị ứng các loại hạt', spicy:'Đừng cay nhé', check:'Tính tiền'},
+  en:{order:"I'd like this, please", noPork:"I can't eat pork", noBeef:"I can't eat beef", veg:"I'm vegetarian", seafood:"I'm allergic to seafood", nuts:"I'm allergic to nuts", spicy:'Not spicy, please', check:'Check, please'}
+};
+const P_TH = {order:'ขออันนี้', noPork:'ไม่กินหมู', noBeef:'ไม่กินเนื้อวัว', veg:'กินมังสวิรัติ', seafood:'แพ้อาหารทะเล', nuts:'แพ้ถั่ว', spicy:'ไม่เอาเผ็ด', check:'เช็กบิล'};
+const DIETS = [['pork','🐷 ไม่กินหมู','noPork','หมูและของที่ทำจากหมู (น้ำมันหมู น้ำซุปกระดูกหมู)'], ['beef','🐄 ไม่กินเนื้อวัว','noBeef','เนื้อวัว'], ['veg','🥬 มังสวิรัติ','veg','เนื้อสัตว์ ปลา อาหารทะเล และน้ำซุปจากสัตว์'],
+  ['seafood','🦐 แพ้อาหารทะเล','seafood','กุ้ง ปู หอย ปลา'], ['nuts','🥜 แพ้ถั่ว','nuts','ถั่วลิสงและถั่วเปลือกแข็ง'], ['spicy','🌶️ ไม่กินเผ็ด','spicy','อาหารเผ็ด']];
+
+/* ============ HELPERS ============ */
+const $ = (s, el=document) => el.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+function money(n, c='THB'){ n = num(n); const d = ZERO_DEC.has(c) || (c === 'THB' && Math.abs(n) >= 100) ? 0 : 2;
+  return (n < 0 ? '-' : '') + (SYM[c] || c + ' ') + Math.abs(n).toLocaleString('th-TH', {maximumFractionDigits:d}); }
+function toast(msg, type=''){ const el = document.createElement('div'); el.className = 'toast ' + type; el.textContent = msg; $('#toast').appendChild(el); setTimeout(() => el.remove(), 3000); }
+const ago = t => { const m = Math.round((Date.now() - t) / 6e4); if (m < 1) return 'เมื่อสักครู่'; if (m < 60) return m + ' นาทีที่แล้ว'; const h = Math.round(m / 60); if (h < 24) return h + ' ชม.ที่แล้ว'; return Math.round(h / 24) + ' วันที่แล้ว'; };
+function lsGet(k, d){ try { const v = JSON.parse(localStorage.getItem(k)); return v ?? d; } catch { return d; } }
+function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { toast('บันทึกไม่สำเร็จ พื้นที่ในเครื่องเต็ม', 'bad'); return false; } }
+
+/* ============ STATE ============ */
+let st = Object.assign({cfg:{url:'', token:''}, diet:{}, mode:'menu', country:'', curr:'', lastPay:''}, lsGet(KEY, {}));
+st.diet = st.diet || {};
+const save = () => lsSet(KEY, st);
+let hist = lsGet(HKEY, []); if (!Array.isArray(hist)) hist = [];
+let rates = lsGet(RKEY, {rates:{}, at:0});
+const params = new URLSearchParams(location.search);
+let view = 'home', scan = null, busy = false, S = null, pendingAppend = false;
+
+/* TripBudget: ทริปที่เปิดอยู่ (อ่านอย่างเดียว) */
+function trip(){ const a = lsGet(TB_ACTIVE, null); return a && a.tripId ? a : null; }
+function ctx(){
+  const t = trip(), pc = (params.get('country') || '').toUpperCase();
+  const country = st.country || (t && COUNTRIES[t.country] ? t.country : '') || (COUNTRIES[pc] ? pc : '') || 'JP';
+  const C = COUNTRIES[country] || COUNTRIES.OTHER;
+  const curr = st.curr || (t && t.country === country && t.currency) || C[2];
+  const rate = curr === 'THB' ? 1 : (t && t.currency === curr ? (t.cashRate || t.rate) : 0) || (rates.rates || {})[curr] || FALLBACK[curr] || 0;
+  return {country, C, curr, rate, lang:C[3], t};
+}
+async function fetchRates(){
+  if (!navigator.onLine || Date.now() - (rates.at || 0) < 6 * 3600e3) return;
+  try { const r = await fetch('https://open.er-api.com/v6/latest/THB', {cache:'no-store'}); const d = await r.json(); if (!d.rates) return;
+    const out = {}; for (const k in FALLBACK) if (d.rates[k]) out[k] = 1 / d.rates[k]; rates = {rates:out, at:Date.now()}; lsSet(RKEY, rates); } catch {}
+}
+
+/* ============ AI (Google Apps Script → Gemini) ============ */
+const ready = () => !!(st.cfg.url && st.cfg.token);
+async function callAI(payload, ms=120000){
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, token:st.cfg.token}), signal:ac.signal});
+    let d; try { d = await r.json(); } catch { throw new Error('ลิงก์ Apps Script ไม่ถูกต้อง หรือยังไม่ได้ Deploy แบบ Anyone'); }
+    if (!d.ok) throw new Error(d.error || 'เกิดข้อผิดพลาด');
+    return d;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('ใช้เวลานานเกินไป ลองใหม่ หรือถ่ายทีละครึ่งหน้า');
+    if (!navigator.onLine) throw new Error('ไม่มีอินเทอร์เน็ต การแปลต้องใช้เน็ต');
+    if (e instanceof TypeError) throw new Error('เชื่อมต่อไม่ได้ เช็กเน็ตหรือลิงก์ Apps Script');
+    throw e;
+  } finally { clearTimeout(tm); }
+}
+function compress(file, max=1600, q=.82){
+  return new Promise((res, rej) => { const fr = new FileReader();
+    fr.onload = () => { const im = new Image();
+      im.onload = () => { const s = Math.min(1, max / Math.max(im.width, im.height)), w = Math.round(im.width * s), h = Math.round(im.height * s);
+        const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, w, h); x.drawImage(im, 0, 0, w, h);
+        res(c.toDataURL('image/jpeg', q)); };
+      im.onerror = () => rej(new Error('เปิดรูปไม่ได้')); im.src = fr.result; };
+    fr.onerror = () => rej(new Error('อ่านไฟล์ไม่ได้')); fr.readAsDataURL(file); });
+}
+const dietText = () => DIETS.filter(([k]) => st.diet[k]).map(d => d[3]).join(', ');
+async function doScan(file){
+  if (busy) return; if (!ready()) { go('settings'); return; }
+  const append = pendingAppend && scan; pendingAppend = false;
+  let img; try { img = await compress(file); } catch (e) { toast(e.message, 'bad'); return; }
+  const c = ctx(); busy = true;
+  if (!append) { scan = {id:uid(), at:Date.now(), mode:st.mode, country:c.country, curr:c.curr, lang:'', note:'', items:[], qty:{}, imgs:[], saved:false}; }
+  scan.imgs.push(img); scan.loading = true; go('result');
+  try {
+    const d = await callAI({action:'menu', mode:scan.mode, image:img.split(',')[1], mime:'image/jpeg', country:c.C[1] + ' (' + c.country + ')', currency:c.curr, diet:scan.mode === 'menu' ? dietText() : ''});
+    if (d.kind === 'other' && !d.items.length) { scan.err = d.note || (scan.mode === 'menu' ? 'ไม่เจอเมนูในรูปนี้ ลองถ่ายใหม่ให้เห็นตัวหนังสือชัดๆ' : 'ไม่เจอตัวหนังสือในรูปนี้'); }
+    else { scan.err = ''; scan.items.push(...d.items); scan.lang = scan.lang || d.lang || ''; scan.note = [scan.note, d.note].filter(Boolean).join(' · '); }
+    scan.loading = false; saveHist();
+    if (d.items.length) toast(`อ่านได้ ${d.items.length} รายการ`);
+  } catch (e) { scan.loading = false; scan.err = e.message; if (!scan.items.length) scan.imgs.pop(); }
+  busy = false; render();
+}
+function saveHist(){
+  if (!scan || !scan.items.length) return;
+  const rec = {id:scan.id, at:scan.at, mode:scan.mode, country:scan.country, curr:scan.curr, lang:scan.lang, note:scan.note, items:scan.items};
+  hist = [rec, ...hist.filter(h => h.id !== scan.id)].slice(0, 12);
+  while (!lsSet(HKEY, hist) && hist.length > 1) hist.pop();
+}
+
+/* ============ VIEW: HOME ============ */
+function vHome(){
+  const c = ctx(), t = c.t;
+  let h = '';
+  if (!ready()) h += `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>👋 ตั้งค่าก่อนใช้ครั้งแรก</h2></div>
+    <div class="small" style="color:var(--ink2)">แอปนี้ใช้ AI (Gemini) อ่านเมนู ต้องใส่ลิงก์ Apps Script และรหัสลับก่อน ถ้าเพื่อนส่ง "ลิงก์ตั้งค่า" มา กดลิงก์นั้นได้เลย</div>
+    <button class="btn pri sm mt" data-act="settings">ไปตั้งค่า</button></div>`;
+  h += `<div class="card flat"><div class="row"><span style="font-size:28px">${c.C[0]}</span><div class="grow"><b>${esc(c.C[1])}</b> · <span class="num">${c.curr}</span>${c.rate && c.curr !== 'THB' ? ` <span class="muted small">· 1 ${c.curr} ≈ ${+c.rate.toPrecision(3)} ฿</span>` : ''}
+    <div class="muted small">${t ? '🧳 ทริป: ' + esc(t.name || 'ทริป') + ' (จาก TripBudget)' : 'ยังไม่เชื่อมทริป · เปิด TripBudget แล้วกด 📷 แปลเมนู'}</div></div><button class="btn ghost sm" data-act="settings">เปลี่ยน</button></div></div>
+  <div class="seg" style="margin-bottom:12px"><button class="${st.mode === 'menu' ? 'on' : ''}" data-act="mode" data-m="menu">🍜 เมนูอาหาร</button><button class="${st.mode === 'sign' ? 'on' : ''}" data-act="mode" data-m="sign">🪧 ป้าย / ข้อความ</button></div>
+  <div class="shoot"><label class="cam" for="fCam"><span>📷</span>ถ่ายรูป${st.mode === 'menu' ? 'เมนู' : 'ป้าย'}</label><label class="gal" for="fGal"><span>🖼️</span>เลือกจากคลังรูป</label></div>
+  <div class="muted small mt-s" style="text-align:center">ถ่ายตรงๆ ทีละหน้า แสงพอ ตัวหนังสือชัด · ใช้เวลาราว 10–30 วินาที${navigator.onLine ? '' : ' · <b style="color:var(--bad)">ตอนนี้ไม่มีเน็ต</b>'}</div>`;
+  if (st.mode === 'menu') h += `<div class="card mt"><div class="ch"><h2>🚫 ฉันไม่กิน / แพ้</h2></div><div class="chips">${DIETS.map(([k, n]) => `<button class="chip ${st.diet[k] ? 'on' : ''}" data-act="diet" data-k="${k}">${n}</button>`).join('')}</div>
+    <div class="muted small mt-s">แอปจะไฮไลต์เมนูที่ควรระวัง และใส่ประโยคบอกพนักงานให้ตอนสั่ง</div></div>`;
+  h += `<div class="row" style="margin:16px 2px 8px"><h2 class="grow">🕘 ล่าสุด</h2>${hist.length ? '<button class="link" data-act="clearHist">ล้าง</button>' : ''}</div>`;
+  h += hist.length ? hist.map(x => { const C = COUNTRIES[x.country] || COUNTRIES.OTHER;
+    return `<button class="hist" data-act="openHist" data-id="${x.id}"><span class="ic">${x.mode === 'sign' ? '🪧' : '🍜'}</span><span class="grow"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.items.slice(0, 3).map(i => i.th).join(', '))}</b><span class="muted small">${C[0]} ${x.items.length} รายการ · ${ago(x.at)}</span></span><span class="muted">›</span></button>`; }).join('')
+    : `<div class="empty small">ยังไม่มี ถ่ายเมนูแรกได้เลย</div>`;
+  return h;
+}
+
+/* ============ VIEW: RESULT ============ */
+function conflict(it){
+  const d = st.diet, lv = v => v === 'yes' ? 2 : v === 'maybe' ? 1 : 0, out = [];
+  const A = it.allergens || [];
+  if (d.pork && lv(it.pork)) out.push([lv(it.pork), it.pork === 'yes' ? 'มีหมู' : 'อาจมีหมู']);
+  if (d.beef && lv(it.beef)) out.push([lv(it.beef), it.beef === 'yes' ? 'มีเนื้อวัว' : 'อาจมีเนื้อวัว']);
+  if (d.veg && !it.veg) out.push([2, 'ไม่ใช่มังสวิรัติ']);
+  if (d.seafood && (lv(it.seafood) || A.some(a => /กุ้ง|หอย|ปลา/.test(a)))) out.push([Math.max(1, lv(it.seafood)), 'มีอาหารทะเล']);
+  if (d.nuts && A.some(a => /ถั่วลิสง|เปลือกแข็ง/.test(a))) out.push([2, 'มีถั่ว']);
+  if (d.spicy && it.spicy >= 2) out.push([it.spicy >= 3 ? 2 : 1, 'เผ็ด']);
+  return out;
+}
+const level = it => Math.max(0, ...conflict(it).map(x => x[0]));
+function flagsHtml(it){
+  const f = [], d = st.diet, cls = (on, v) => on ? (v === 'yes' ? 'bad' : 'warn') : '';
+  if (it.pork !== 'no') f.push([cls(d.pork || d.veg, it.pork), it.pork === 'yes' ? '🐷 หมู' : '🐷 อาจมีหมู']);
+  if (it.beef !== 'no') f.push([cls(d.beef || d.veg, it.beef), it.beef === 'yes' ? '🐄 เนื้อวัว' : '🐄 อาจมีเนื้อวัว']);
+  if (it.chicken !== 'no') f.push([cls(d.veg, it.chicken), it.chicken === 'yes' ? '🐔 ไก่' : '🐔 อาจมีไก่']);
+  if (it.seafood !== 'no') f.push([cls(d.seafood || d.veg, it.seafood), it.seafood === 'yes' ? '🦐 อาหารทะเล' : '🦐 อาจมีอาหารทะเล']);
+  if (it.alcohol !== 'no') f.push(['', it.alcohol === 'yes' ? '🍶 แอลกอฮอล์' : '🍶 อาจมีแอลกอฮอล์']);
+  if (it.spicy) f.push([d.spicy && it.spicy >= 2 ? (it.spicy >= 3 ? 'bad' : 'warn') : '', '🌶️'.repeat(it.spicy) + ' เผ็ด']);
+  if (it.veg) f.push(['good', '🥬 มังสวิรัติ']);
+  if ((it.allergens || []).length) f.push([(d.nuts && it.allergens.some(a => /ถั่วลิสง|เปลือกแข็ง/.test(a))) || (d.seafood && it.allergens.some(a => /กุ้ง|หอย|ปลา/.test(a))) ? 'bad' : '', '⚠️ ' + it.allergens.join(', ')]);
+  if (it.conf === 'ต่ำ') f.push(['warn', '❓ AI ไม่ค่อยแน่ใจ']);
+  return f.length ? `<div class="fl">${f.map(([c, t]) => `<span class="${c}">${esc(t)}</span>`).join('')}</div>` : '';
+}
+let filter = 'all';
+function vResult(){
+  if (!scan) return vHome();
+  const c = scan, C = COUNTRIES[c.country] || COUNTRIES.OTHER, rate = rateFor(c.curr), isMenu = c.mode === 'menu';
+  let h = `<div class="row" style="margin-bottom:10px"><button class="btn ghost sm" data-act="home">← กลับ</button><span class="grow"></span><span class="muted small">${C[0]} ${esc(C[1])} · ${isMenu ? 'เมนู' : 'ป้าย'}</span></div>`;
+  if (c.imgs.length) h += `<div class="row" style="gap:6px;margin-bottom:10px;overflow-x:auto">${c.imgs.map((s, i) => `<img class="photo" src="${s}" data-act="zoom" data-i="${i}" alt="รูปที่ ${i + 1}" style="${c.imgs.length > 1 ? 'width:46%;flex-shrink:0' : ''}">`).join('')}</div>`;
+  if (c.loading) h += `<div class="card" style="text-align:center"><div class="spin"></div><b style="display:block;margin-top:12px">กำลังอ่าน${isMenu ? 'เมนู' : 'ป้าย'}...</b><div class="muted small">ใช้เวลาราว 10–30 วินาที อย่าเพิ่งปิดแอป</div></div>`;
+  if (c.err) h += `<div class="alert bad" style="margin-bottom:10px">⚠️ ${esc(c.err)}</div>`;
+  if (c.note) h += `<div class="alert info" style="margin-bottom:10px">💡 ${esc(c.note)}</div>`;
+  if (!c.items.length) return h + (c.loading ? '' : `<button class="btn pri block" data-act="home">ถ่ายใหม่</button>`);
+  const hasDiet = isMenu && DIETS.some(([k]) => st.diet[k]);
+  const ok = c.items.filter(i => !level(i)).length, careful = c.items.length - ok;
+  if (hasDiet) h += `<div class="chips" style="margin-bottom:10px"><button class="chip ${filter === 'all' ? 'on' : ''}" data-act="filter" data-f="all">ทั้งหมด ${c.items.length}</button><button class="chip ${filter === 'ok' ? 'on' : ''}" data-act="filter" data-f="ok">✅ กินได้ ${ok}</button><button class="chip ${filter === 'warn' ? 'on' : ''}" data-act="filter" data-f="warn">⚠️ ระวัง ${careful}</button></div>`;
+  h += c.items.map((it, i) => {
+    const lv = isMenu ? level(it) : 0;
+    if (hasDiet && ((filter === 'ok' && lv) || (filter === 'warn' && !lv))) return '';
+    const q = c.qty[i] || 0, why = conflict(it).map(x => x[1]);
+    return `<div class="it ${lv === 2 ? 'bad' : lv === 1 ? 'warn' : ''}"><div class="row" style="align-items:flex-start">
+      <div class="grow"><span class="th">${esc(it.th || it.orig)}</span><div class="orig" lang="${esc(c.lang)}">${esc(it.orig)}</div>${it.reading ? `<div class="rd">อ่านว่า ${esc(it.reading)}</div>` : ''}</div>
+      ${it.price ? `<div class="pr"><b class="num">${money(it.price, c.curr)}</b>${rate && c.curr !== 'THB' ? `<span class="muted small num">≈ ${money(it.price * rate)}</span>` : ''}</div>` : ''}</div>
+      ${it.desc ? `<div class="desc">${esc(it.desc)}</div>` : ''}
+      ${lv ? `<div class="small" style="font-weight:700;color:${lv === 2 ? 'var(--bad)' : 'var(--warn)'};margin-top:4px">${lv === 2 ? '⛔' : '⚠️'} ${esc(why.join(' · '))}</div>` : ''}
+      ${isMenu ? flagsHtml(it) : ''}
+      <div class="row mt-s"><button class="btn ghost sm" data-act="say" data-i="${i}" aria-label="ฟังเสียง">🔊</button><button class="btn ghost sm" data-act="point" data-i="${i}">👉 ชี้ให้พนักงานดู</button><span class="grow"></span>
+      ${isMenu ? (q ? `<span class="qty"><button data-act="qty" data-i="${i}" data-d="-1" aria-label="ลด">−</button><b>${q}</b><button data-act="qty" data-i="${i}" data-d="1" aria-label="เพิ่ม">+</button></span>` : `<button class="btn ghost sm" data-act="qty" data-i="${i}" data-d="1">+ สั่ง</button>`) : ''}</div></div>`;
+  }).join('');
+  h += `<div class="row wrap mt" style="justify-content:center"><label class="btn ghost sm" for="fCam" data-act="appendNext">➕ ถ่าย${isMenu ? 'หน้าถัดไป' : 'เพิ่ม'}</label><button class="btn ghost sm" data-act="home">ถ่ายรูปใหม่</button></div>
+    <div class="muted small mt" style="text-align:center">AI แปลและเดาส่วนผสม อาจผิดได้ ถ้าแพ้อาหารรุนแรง ให้ยื่นประโยคแพ้อาหารให้พนักงานยืนยันทุกครั้ง</div>`;
+  return h;
+}
+const rateFor = curr => { const c = ctx(); return curr === c.curr ? c.rate : (curr === 'THB' ? 1 : (rates.rates || {})[curr] || FALLBACK[curr] || 0); };
+function basketHtml(){
+  if (view !== 'result' || !scan || scan.mode !== 'menu') return '';
+  const lines = Object.entries(scan.qty).filter(([, q]) => q > 0); if (!lines.length) return '';
+  const n = lines.reduce((s, [, q]) => s + q, 0), tot = lines.reduce((s, [i, q]) => s + (scan.items[i].price || 0) * q, 0), r = rateFor(scan.curr);
+  return `<div class="basket"><div class="grow"><b>🧺 ${n} รายการ</b><div class="small" style="opacity:.8">${tot ? money(tot, scan.curr) + (r && scan.curr !== 'THB' ? ' ≈ ' + money(tot * r) : '') : 'ไม่มีราคาในเมนู'}</div></div><button class="btn" data-act="order">สั่ง / บันทึก</button></div>`;
+}
+
+/* ============ ORDER ============ */
+const phr = lang => P[lang] || P.en;
+function orderLines(){ return Object.entries(scan.qty).filter(([, q]) => q > 0).map(([i, q]) => ({it:scan.items[+i], q, i:+i})); }
+function orderSheet(){
+  const L = orderLines(), tot = L.reduce((s, x) => s + (x.it.price || 0) * x.q, 0), r = rateFor(scan.curr);
+  S = {kind:'order'};
+  openSheet(`<div class="sh"><b>🧺 รายการที่จะสั่ง</b><button class="x" data-act="closeSheet" aria-label="ปิด">✕</button></div>
+    ${L.map(x => `<div class="oline"><div class="grow"><b>${esc(x.it.th)}</b><div class="muted small">${esc(x.it.orig)}</div></div><span class="qty"><button data-act="qty" data-i="${x.i}" data-d="-1" data-s="1">−</button><b>${x.q}</b><button data-act="qty" data-i="${x.i}" data-d="1" data-s="1">+</button></span>
+      <b class="num" style="min-width:70px;text-align:right">${x.it.price ? money(x.it.price * x.q, scan.curr) : '–'}</b></div>`).join('')}
+    <div class="row mt"><b class="grow">รวม</b><b class="num" style="font-size:18px">${money(tot, scan.curr)}</b></div>
+    ${r && scan.curr !== 'THB' ? `<div class="right muted small num">≈ ${money(tot * r)}</div>` : ''}
+    <div class="muted small mt-s">ราคาจากเมนู อาจยังไม่รวมภาษีหรือค่าบริการ แก้ยอดจริงได้ตอนบันทึก</div>
+    <div class="stack mt"><button class="btn pri block" data-act="staff">🙋 แสดงให้พนักงาน (ตัวใหญ่)</button>
+    <button class="btn ghost block" data-act="toTrip">💰 บันทึกเป็นรายจ่ายใน TripBudget</button></div>
+    <div class="sf"><button class="btn ghost" data-act="clearOrder">ล้างรายการ</button><span class="sp"></span><button class="btn ghost" data-act="closeSheet">ปิด</button></div>`);
+}
+function staffScreen(){
+  const lang = langOf(), L = orderLines(), p = phr(lang), en = P.en;
+  const extra = DIETS.filter(([k]) => st.diet[k]).map(d => d[2]);
+  showBig(`<div class="ph" lang="${lang}">${esc(p.order)}</div><div class="phs">${lang !== 'en' ? esc(en.order) + ' · ' : ''}ขออันนี้</div>
+    ${L.map(x => `<div class="ol"><span lang="${lang}">${esc(x.it.orig)}<small>${esc(x.it.th)}</small></span><span class="q">× ${x.q}</span></div>`).join('')}
+    ${extra.map(k => `<div class="ex" lang="${lang}">${esc(p[k])}<div class="phs" style="color:var(--ink3);font-weight:500;margin:2px 0 0">${lang !== 'en' ? esc(en[k]) + ' · ' : ''}${P_TH[k]}</div></div>`).join('')}`);
+}
+function pointScreen(i){
+  const it = scan.items[i], lang = langOf(), p = phr(lang);
+  const extra = scan.mode === 'menu' ? DIETS.filter(([k]) => st.diet[k]).map(d => d[2]) : [];
+  showBig(`${scan.mode === 'menu' ? `<div class="ph" lang="${lang}">${esc(p.order)}</div><div class="phs">${lang !== 'en' ? esc(P.en.order) + ' · ' : ''}ขออันนี้</div>` : ''}
+    <div class="ph" lang="${lang}" style="font-size:clamp(32px,10vw,60px);margin:24px 0 8px">${esc(it.orig)}</div><div class="phs">${esc(it.th)}${it.reading ? ' · อ่านว่า ' + esc(it.reading) : ''}</div>
+    ${extra.map(k => `<div class="ex" lang="${lang}">${esc(p[k])}<div class="phs" style="font-weight:500;margin:2px 0 0">${P_TH[k]}</div></div>`).join('')}`);
+}
+const langOf = () => { const l = (scan && scan.lang || '').toLowerCase(), C = COUNTRIES[scan ? scan.country : 'JP'] || COUNTRIES.OTHER;
+  if (l.startsWith('ja')) return 'ja'; if (l.startsWith('ko')) return 'ko'; if (l.startsWith('vi')) return 'vi';
+  if (l.startsWith('zh')) return /hant|tw|hk/.test(l) ? 'zh-Hant' : (C[3] === 'zh-Hant' ? 'zh-Hant' : 'zh-Hans');
+  if (l && l.startsWith('en')) return 'en'; return P[C[3]] ? C[3] : 'en'; };
+function tripSheet(){
+  const t = trip(), L = orderLines(), tot = L.reduce((s, x) => s + (x.it.price || 0) * x.q, 0);
+  S = {kind:'trip', pay:''};
+  if (!t) { openSheet(`<div class="sh"><b>💰 บันทึกเข้า TripBudget</b><button class="x" data-act="closeSheet" aria-label="ปิด">✕</button></div>
+    <div class="alert warn">ยังไม่มีทริปที่เปิดอยู่ เปิดแอป TripBudget เลือกทริป แล้วกดปุ่ม 📷 แปลเมนู จากในแอปนั้น</div>
+    <div class="sf"><span class="sp"></span><a class="btn pri" href="${TB_URL}">เปิด TripBudget</a></div>`); return; }
+  const pays = Array.isArray(t.pays) ? t.pays.filter(p => ['cash','card','ic'].includes(p)) : [], PN = {cash:'💵 เงินสด', card:'💳 บัตร', ic:'🚃 บัตรเดินทาง'};
+  S.pay = pays.includes(st.lastPay) ? st.lastPay : pays[0] || '';
+  const sameCurr = t.currency === scan.curr;
+  openSheet(`<div class="sh"><b>💰 บันทึกเข้า TripBudget</b><button class="x" data-act="closeSheet" aria-label="ปิด">✕</button></div>
+    <div class="stack"><div class="alert info">🧳 ทริป <b>${esc(t.name || 'ทริป')}</b> · หมวดอาหาร · ${t.day ? 'วันที่ ' + t.day : 'ก่อนเดินทาง'}</div>
+    ${scan.saved ? '<div class="alert warn">มื้อนี้บันทึกไปแล้วครั้งหนึ่ง ระวังบันทึกซ้ำ</div>' : ''}
+    <label class="f">รายการ<input id="tName" maxlength="80" value="${esc(L.map(x => x.it.th + (x.q > 1 ? ' ×' + x.q : '')).join(', ').slice(0, 80) || 'อาหาร')}"></label>
+    <label class="f">ยอดที่จ่ายจริง (${scan.curr})<input id="tAmt" type="number" inputmode="decimal" step="any" min="0" class="num" value="${tot || ''}" style="font-size:22px"></label>
+    ${!sameCurr ? `<div class="muted small">สกุลเงินของเมนู (${scan.curr}) ไม่ตรงกับทริป (${esc(t.currency)}) TripBudget จะแปลงเป็นบาทด้วยเรตกลาง</div>` : ''}
+    ${pays.length ? `<div><div class="muted small" style="margin-bottom:6px">จ่ายด้วย</div><div class="seg" id="tPay">${pays.map(p => `<button class="${p === S.pay ? 'on' : ''}" data-act="tPay" data-p="${p}">${PN[p]}</button>`).join('')}</div></div>` : ''}
+    <label class="f">หมายเหตุ<input id="tNote" maxlength="120" placeholder="ไม่บังคับ เช่น ชื่อร้าน"></label></div>
+    <div class="sf"><span class="sp"></span><button class="btn ghost" data-act="closeSheet">ยกเลิก</button><button class="btn pri" data-act="saveTrip">บันทึก</button></div>`);
+}
+
+/* ============ VIEW: SETTINGS ============ */
+function vSettings(){
+  const c = ctx(), t = c.t;
+  return `<div class="row" style="margin-bottom:12px"><h1 class="grow">⚙️ ตั้งค่า</h1><button class="btn ghost sm" data-act="home">เสร็จ</button></div>
+  <div class="card"><div class="ch"><h2>🤖 เชื่อม AI (Apps Script)</h2>${ready() ? '<span class="muted small">✅ ตั้งแล้ว</span>' : ''}</div>
+    <div class="stack"><label class="f">ลิงก์ Web app (ลงท้าย /exec)<input id="cUrl" value="${esc(st.cfg.url)}" placeholder="https://script.google.com/macros/s/.../exec" inputmode="url"></label>
+    <label class="f">รหัสลับ (APP_TOKEN)<input id="cTok" type="password" value="${esc(st.cfg.token)}"></label>
+    <div class="row wrap"><button class="btn pri sm" data-act="testCfg">บันทึกและทดสอบ</button>${ready() ? '<button class="btn ghost sm" data-act="shareCfg">🔗 ส่งลิงก์ตั้งค่าให้เพื่อน</button>' : ''}</div>
+    <div class="muted small" id="cStatus">วิธีตั้งค่าอยู่ใน README ของ repo menu บน GitHub · ส่งลิงก์ตั้งค่าให้เพื่อน = เพื่อนใช้โควตา AI ของคุณ</div></div></div>
+  <div class="card"><div class="ch"><h2>🌍 ประเทศและสกุลเงิน</h2></div>
+    <div class="stack"><label class="f">ประเทศ<select id="cCountry"><option value="">ตามทริปใน TripBudget${t && COUNTRIES[t.country] ? ' (' + COUNTRIES[t.country][1] + ')' : ''}</option>${Object.entries(COUNTRIES).map(([k, v]) => `<option value="${k}" ${st.country === k ? 'selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select></label>
+    <label class="f">สกุลเงินในเมนู<select id="cCurr"><option value="">อัตโนมัติ (${c.C[2]})</option>${Object.keys(SYM).map(k => `<option ${st.curr === k ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+    <div class="muted small">${t ? `ทริปที่เปิดอยู่ใน TripBudget: ${esc(t.name || 'ทริป')} · เรต 1 ${esc(t.currency)} = ${+num(t.cashRate || t.rate).toPrecision(4)} ฿` : 'ยังไม่มีทริปที่เปิดอยู่ใน TripBudget (เรตเงินใช้เรตกลางตลาด)'}</div></div></div>
+  <div class="card"><div class="ch"><h2>🔒 ข้อมูล</h2></div><div class="small" style="color:var(--ink2)">รูปส่งไปให้ AI อ่านผ่าน Apps Script ของคุณ แล้วไม่ได้เก็บไว้ที่ไหน ในเครื่องเก็บแค่ผลแปล 12 ครั้งล่าสุด (ไม่เก็บรูป) · แอปอ่านชื่อทริปและเรตจาก TripBudget และส่งรายจ่ายกลับเฉพาะตอนกดบันทึก</div>
+    <button class="btn ghost sm mt" data-act="clearHist">ลบประวัติการแปล</button></div>
+  <div class="muted small" style="text-align:center">แปลเมนู v${esc(self.APP_VERSION)} · <a class="link" href="${TB_URL}">เปิด TripBudget</a></div>`;
+}
+
+/* ============ SHEET / DIALOG / BIG ============ */
+function openSheet(html){ const el = $('#sheet'); el.innerHTML = `<div class="sheet" role="dialog" aria-modal="true">${html}</div>`; el.hidden = false; document.body.classList.add('lock'); }
+function closeSheet(){ S = null; const el = $('#sheet'); el.hidden = true; el.innerHTML = ''; document.body.classList.remove('lock'); }
+function dialog({title, text='', ok='ตกลง', cancel='ยกเลิก'}){
+  return new Promise(res => { const el = $('#dlg');
+    el.innerHTML = `<div class="dlg" role="alertdialog"><h3>${esc(title)}</h3>${text ? `<div class="dt">${esc(text)}</div>` : ''}<div class="row"><span class="grow"></span>${cancel ? `<button class="btn ghost" id="dNo">${esc(cancel)}</button>` : ''}<button class="btn pri" id="dYes">${esc(ok)}</button></div></div>`;
+    el.hidden = false; const done = v => { el.hidden = true; el.innerHTML = ''; res(v); };
+    $('#dYes').onclick = () => done(true); if ($('#dNo')) $('#dNo').onclick = () => done(false); el.onclick = e => { if (e.target === el) done(false); }; });
+}
+function showBig(html){ const el = $('#big'); el.innerHTML = html + `<div class="hint">แตะเพื่อปิด</div>`; el.hidden = false; el.scrollTop = 0; }
+function say(text, lang){ if (!('speechSynthesis' in window) || !text) return; speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = TTS_LANG[lang] || 'en-US'; u.rate = .9; speechSynthesis.speak(u); }
+
+/* ============ RENDER ============ */
+function render(){
+  $('#view').innerHTML = view === 'settings' ? vSettings() : view === 'result' ? vResult() : vHome();
+  $('#basket').innerHTML = basketHtml();
+  const c = ctx(); $('#ctx').textContent = c.C[0] + ' ' + (c.t ? (c.t.name || 'ทริป') : c.C[1]);
+}
+function go(v){ view = v; render(); window.scrollTo(0, 0); }
+
+/* ============ ACTIONS ============ */
+const A = {
+  home(){ if (busy) { toast('กำลังอ่านอยู่ รอสักครู่'); view = 'result'; render(); return; } go('home'); },
+  settings(){ go('settings'); },
+  mode(el){ st.mode = el.dataset.m; save(); render(); },
+  diet(el){ const k = el.dataset.k; st.diet[k] = !st.diet[k]; save(); render(); },
+  filter(el){ filter = el.dataset.f; render(); },
+  openHist(el){ const x = hist.find(h => h.id === el.dataset.id); if (!x) return; scan = {...x, items:x.items, qty:{}, imgs:[], saved:false, err:''}; filter = 'all'; go('result'); },
+  async clearHist(){ if (!await dialog({title:'ล้างประวัติการแปล?', ok:'ล้าง'})) return; hist = []; lsSet(HKEY, hist); render(); },
+  qty(el){ const i = +el.dataset.i; scan.qty[i] = Math.max(0, (scan.qty[i] || 0) + +el.dataset.d); if (!scan.qty[i]) delete scan.qty[i];
+    if (el.dataset.s) { if (orderLines().length) orderSheet(); else closeSheet(); } render(); },
+  order(){ orderSheet(); },
+  clearOrder(){ scan.qty = {}; closeSheet(); render(); },
+  staff(){ staffScreen(); },
+  point(el){ pointScreen(+el.dataset.i); },
+  say(el){ const it = scan.items[+el.dataset.i]; say(it.orig, langOf()); },
+  zoom(el){ $('#lbImg').src = scan.imgs[+el.dataset.i]; $('#lb').hidden = false; },
+  closeLb(){ $('#lb').hidden = true; },
+  closeBig(){ $('#big').hidden = true; },
+  closeSheet(){ closeSheet(); },
+  appendNext(){ pendingAppend = true; },
+  toTrip(){ tripSheet(); },
+  tPay(el){ S.pay = el.dataset.p; $$('#tPay button').forEach(b => b.classList.toggle('on', b.dataset.p === S.pay)); },
+  saveTrip(){
+    const t = trip(), amount = num($('#tAmt').value); if (!t) return;
+    if (!(amount > 0)) { toast('ใส่ยอดที่จ่ายก่อน', 'bad'); $('#tAmt').focus(); return; }
+    const item = {id:'menu-' + uid(), source:'menu', name:$('#tName').value.trim().slice(0, 80) || 'อาหาร', amount, curr:scan.curr, cat:'food',
+      pay:S.pay || '', note:$('#tNote').value.trim().slice(0, 120), tripId:t.tripId, at:new Date().toISOString()};
+    const box = lsGet(TB_INBOX, []); if (!lsSet(TB_INBOX, [...(Array.isArray(box) ? box : []), item])) return;
+    if (S.pay) { st.lastPay = S.pay; save(); }
+    scan.saved = true; closeSheet();
+    openSheet(`<div class="sh"><b>✅ ส่งเข้า TripBudget แล้ว</b><button class="x" data-act="closeSheet" aria-label="ปิด">✕</button></div>
+      <div class="alert good">${esc(item.name)} · ${money(amount, item.curr)} จะเข้าไปอยู่ในทริป "${esc(t.name || 'ทริป')}" ตอนเปิด TripBudget ครั้งถัดไป</div>
+      <div class="sf"><button class="btn ghost" data-act="closeSheet">อยู่ที่นี่ต่อ</button><span class="sp"></span><a class="btn pri" href="${TB_URL}">เปิด TripBudget</a></div>`); },
+  async testCfg(){ const url = $('#cUrl').value.trim(), token = $('#cTok').value.trim(), s = $('#cStatus');
+    if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { s.textContent = '❌ ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/'; return; }
+    if (!token) { s.textContent = '❌ ใส่รหัสลับด้วย'; return; }
+    const prev = st.cfg; st.cfg = {url, token}; s.textContent = '⏳ กำลังทดสอบ...';
+    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู');
+      save(); s.textContent = '✅ เชื่อมต่อได้ พร้อมใช้งาน'; toast('ตั้งค่าเรียบร้อย'); setTimeout(() => go('home'), 700); }
+    catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
+  async shareCfg(){ const link = location.origin + location.pathname + '#setup=' + btoa(unescape(encodeURIComponent(JSON.stringify({u:st.cfg.url, t:st.cfg.token})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกดใช้การตั้งค่านี้\n' + link;
+    if (navigator.share) { try { await navigator.share({title:'แปลเมนู', text}); return; } catch {} }
+    try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทาง LINE ได้'); } catch { toast('คัดลอกไม่ได้', 'bad'); } },
+  applyUpdate(){ applyUpdate(); }
+};
+
+/* ============ EVENTS ============ */
+document.addEventListener('click', e => {
+  if (e.target.id === 'sheet') { closeSheet(); return; }
+  const el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  const f = A[el.dataset.act]; if (f) f(el, e);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if ((el.id === 'fCam' || el.id === 'fGal') && el.files[0]) { const f = el.files[0]; el.value = ''; doScan(f); return; }
+  if (el.id === 'cCountry') { st.country = el.value; st.curr = ''; save(); render(); return; }
+  if (el.id === 'cCurr') { st.curr = el.value; save(); render(); return; }
+});
+// ยกเลิก "ถ่ายหน้าถัดไป" ถ้าผู้ใช้ปิดกล้องโดยไม่ถ่าย
+window.addEventListener('focus', () => setTimeout(() => { if (!busy) pendingAppend = false; }, 1500));
+document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; if (!$('#big').hidden) { $('#big').hidden = true; return; } if (!$('#lb').hidden) { $('#lb').hidden = true; return; } if (S) closeSheet(); });
+window.addEventListener('storage', e => { if (e.key === TB_ACTIVE) render(); });
+window.addEventListener('online', render); window.addEventListener('offline', render);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') render(); });
+
+/* ============ UPDATE (service worker) ============ */
+let swReg = null, updating = false;
+function applyUpdate(){ updating = true; if (swReg && swReg.waiting) swReg.waiting.postMessage('SKIP_WAITING'); else location.reload(); }
+function setupSW(){
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').then(reg => { swReg = reg;
+    const show = () => { if (reg.waiting && navigator.serviceWorker.controller) $('#updBar').hidden = false; };
+    show(); reg.addEventListener('updatefound', () => { const w = reg.installing; if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') show(); }); });
+    setInterval(() => reg.update().catch(() => {}), 30 * 60e3);
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (updating) location.reload(); });
+}
+
+/* ============ BOOT ============ */
+(async function boot(){
+  const m = location.hash.match(/^#setup=([\w-]+)/);
+  render();
+  if (m) {
+    history.replaceState(null, '', location.pathname + location.search);
+    try { const b = m[1].replace(/-/g, '+').replace(/_/g, '/'); const o = JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))));
+      if (o.u && o.t && await dialog({title:'ใช้การตั้งค่าจากลิงก์นี้?', text:'ลิงก์นี้ตั้งค่าการเชื่อม AI ให้อัตโนมัติ (ได้มาจากเพื่อนหรือเจ้าของแอป)', ok:'ใช้เลย'})) {
+        st.cfg = {url:String(o.u), token:String(o.t)}; save(); toast('ตั้งค่าเรียบร้อย ถ่ายเมนูได้เลย'); render(); }
+    } catch { toast('ลิงก์ตั้งค่าไม่ถูกต้อง', 'bad'); }
+  }
+  fetchRates().then(render); setupSW();
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+})();
+</script>
+</body>
+</html>

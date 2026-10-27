@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#c2410c"/>
+  <path d="M96 250h320c0 92-72 162-160 162S96 342 96 250z" fill="#fff"/>
+  <rect x="196" y="404" width="120" height="22" rx="11" fill="#fff"/>
+  <path d="M330 92 L402 214" stroke="#fed7aa" stroke-width="18" stroke-linecap="round"/>
+  <path d="M296 104 L352 220" stroke="#fed7aa" stroke-width="18" stroke-linecap="round"/>
+  <rect x="104" y="96" width="150" height="112" rx="26" fill="#fff"/>
+  <path d="M140 208 L130 246 L176 208z" fill="#fff"/>
+  <text x="179" y="180" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="82" fill="#c2410c">ก</text>
+</svg>
