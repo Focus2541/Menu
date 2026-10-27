@@ -19,7 +19,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (/er-api\.com|script\.google(usercontent)?\.com/.test(url.hostname)) return;
-  if (url.origin === location.origin && !url.pathname.includes('/menu/')) return; // แอปอื่นบนโดเมนเดียวกัน
+  if (url.origin === location.origin && !/\/menu\//i.test(url.pathname)) return; // แอปอื่นบนโดเมนเดียวกัน
   if (req.mode === 'navigate') {
     e.respondWith(caches.open(CACHE).then(c => c.match('./index.html')).then(hit => hit || fetch(req)).catch(() => caches.match('./index.html')));
     return;
