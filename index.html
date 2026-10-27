@@ -201,12 +201,17 @@ async function fetchRates(){
 
 /* ============ AI (Google Apps Script → Gemini) ============ */
 const ready = () => !!(st.cfg.url && st.cfg.token);
+// สิทธิ์ของเครื่องนี้: new ยังไม่ขอ · pending รออนุมัติ · approved/owner ใช้ได้ · denied/off ใช้ไม่ได้ · legacy สคริปต์เก่าที่ไม่มีระบบอนุมัติ
+const canScan = () => ready() && ['approved', 'owner', 'legacy'].includes(st.access);
+if (!st.dev) { const a = new Uint8Array(16); crypto.getRandomValues(a); st.dev = 'd' + [...a].map(b => b.toString(36).padStart(2, '0')).join('').slice(0, 23); save(); }
+const ACCESS_TH = {new:'ยังไม่ได้ขอใช้งาน', pending:'⏳ รอเจ้าของอนุมัติ', approved:'✅ อนุมัติแล้ว', owner:'👑 เจ้าของแอป', denied:'⛔ ไม่อนุมัติ', off:'⛔ ถูกปิดสิทธิ์', legacy:'✅ ใช้ได้'};
 let scanAC = null, tick = null;
 async function callAI(payload, ms=90000){
   const ac = new AbortController(), tm = setTimeout(() => ac.abort(), ms); if (payload.action === 'menu') scanAC = ac;
   try {
-    const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, token:st.cfg.token}), signal:ac.signal});
+    const r = await fetch(st.cfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({...payload, token:st.cfg.token, device:st.dev, admin:st.cfg.admin || ''}), signal:ac.signal});
     let d; try { d = await r.json(); } catch { throw new Error('ลิงก์ Apps Script ไม่ถูกต้อง หรือยังไม่ได้ Deploy แบบ Anyone'); }
+    if (d.access && d.access !== st.access) { st.access = d.access; save(); }
     if (!d.ok) throw new Error(d.error || 'เกิดข้อผิดพลาด');
     return d;
   } catch (e) {
@@ -228,6 +233,7 @@ function compress(file, max=1280, q=.78){
 const dietText = () => DIETS.filter(([k]) => st.diet[k]).map(d => d[3]).join(', ');
 async function doScan(file){
   if (busy) return; if (!ready()) { go('settings'); return; }
+  if (!canScan()) { toast('ต้องได้รับอนุญาตจากเจ้าของแอปก่อน', 'warn'); go('home'); return; }
   const append = pendingAppend && scan; pendingAppend = false;
   let img; try { img = await compress(file); } catch (e) { toast(e.message, 'bad'); return; }
   runScan(img, append);
@@ -258,6 +264,7 @@ function saveHist(){
 function vHome(){
   const c = ctx(), t = c.t;
   let h = '';
+  if (ready() && !canScan()) h += accessCard();
   if (!ready()) h += st.cfg.url ? `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>🔑 ใส่รหัสลับก่อนใช้ครั้งแรก</h2></div>
     <div class="small" style="color:var(--ink2)">ขอรหัสลับจากเจ้าของแอป หรือถ้าได้ "ลิงก์ตั้งค่า" มา กดลิงก์นั้นได้เลย</div>
     <div class="row mt"><input id="hTok" type="password" placeholder="รหัสลับ" class="grow" autocomplete="off"><button class="btn pri" data-act="quickTok">เริ่มใช้</button></div><div class="muted small mt-s" id="hStatus"></div></div>`
@@ -267,7 +274,7 @@ function vHome(){
   h += `<div class="card flat"><div class="row"><span style="font-size:28px">${c.C[0]}</span><div class="grow"><b>${esc(c.C[1])}</b> · <span class="num">${c.curr}</span>${c.rate && c.curr !== 'THB' ? ` <span class="muted small">· 1 ${c.curr} ≈ ${+c.rate.toPrecision(3)} ฿</span>` : ''}
     <div class="muted small">${t ? '🧳 ทริป: ' + esc(t.name || 'ทริป') + ' (จาก TripBudget)' : 'ยังไม่เชื่อมทริป · เปิด TripBudget แล้วกด 📷 แปลเมนู'}</div></div><button class="btn ghost sm" data-act="settings">เปลี่ยน</button></div></div>
   <div class="seg" style="margin-bottom:12px"><button class="${st.mode === 'menu' ? 'on' : ''}" data-act="mode" data-m="menu">🍜 เมนูอาหาร</button><button class="${st.mode === 'sign' ? 'on' : ''}" data-act="mode" data-m="sign">🪧 ป้าย / ข้อความ</button></div>
-  <div class="shoot"><label class="cam" for="fCam"><span>📷</span>ถ่ายรูป${st.mode === 'menu' ? 'เมนู' : 'ป้าย'}</label><label class="gal" for="fGal"><span>🖼️</span>เลือกจากคลังรูป</label></div>
+  ${ready() && !canScan() ? '' : `<div class="shoot"><label class="cam" for="fCam"><span>📷</span>ถ่ายรูป${st.mode === 'menu' ? 'เมนู' : 'ป้าย'}</label><label class="gal" for="fGal"><span>🖼️</span>เลือกจากคลังรูป</label></div>`}
   <div class="muted small mt-s" style="text-align:center">ถ่ายตรงๆ ทีละหน้า แสงพอ ตัวหนังสือชัด · ใช้เวลาราว 10–30 วินาที${navigator.onLine ? '' : ' · <b style="color:var(--bad)">ตอนนี้ไม่มีเน็ต</b>'}</div>`;
   if (st.mode === 'menu') h += `<div class="card mt"><div class="ch"><h2>🚫 ฉันไม่กิน / แพ้</h2></div><div class="chips">${DIETS.map(([k, n]) => `<button class="chip ${st.diet[k] ? 'on' : ''}" data-act="diet" data-k="${k}">${n}</button>`).join('')}</div>
     <div class="muted small mt-s">แอปจะไฮไลต์เมนูที่ควรระวัง และใส่ประโยคบอกพนักงานให้ตอนสั่ง</div></div>`;
@@ -276,6 +283,19 @@ function vHome(){
     return `<button class="hist" data-act="openHist" data-id="${x.id}"><span class="ic">${x.mode === 'sign' ? '🪧' : '🍜'}</span><span class="grow"><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.items.slice(0, 3).map(i => i.th).join(', '))}</b><span class="muted small">${C[0]} ${x.items.length} รายการ · ${ago(x.at)}</span></span><span class="muted">›</span></button>`; }).join('')
     : `<div class="empty small">ยังไม่มี ถ่ายเมนูแรกได้เลย</div>`;
   return h;
+}
+
+function accessCard(){
+  const a = st.access || 'new';
+  if (a === 'pending') return `<div class="card" style="border-color:var(--warn)"><div class="ch"><h2>⏳ รอเจ้าของแอปอนุมัติ</h2></div>
+    <div class="small" style="color:var(--ink2)">ส่งคำขอในชื่อ <b>${esc(st.name || '')}</b> แล้ว เจ้าของแอปจะได้อีเมลให้กดอนุมัติ พออนุมัติแล้วกดเช็กสถานะ</div>
+    <button class="btn pri sm mt" data-act="checkAccess">🔄 เช็กสถานะ</button><span class="muted small" id="aStatus" style="margin-left:8px"></span></div>`;
+  if (a === 'denied' || a === 'off') return `<div class="card" style="border-color:var(--bad)"><div class="ch"><h2>⛔ เครื่องนี้ใช้งานไม่ได้</h2></div>
+    <div class="small" style="color:var(--ink2)">เจ้าของแอป${a === 'off' ? 'ปิดสิทธิ์' : 'ไม่ได้อนุมัติ'}เครื่องนี้ ถ้าคิดว่าผิดพลาด ติดต่อเจ้าของแอปโดยตรง</div>
+    <button class="btn ghost sm mt" data-act="checkAccess">🔄 เช็กอีกครั้ง</button><span class="muted small" id="aStatus" style="margin-left:8px"></span></div>`;
+  return `<div class="card" style="border-color:var(--acc)"><div class="ch"><h2>🙋 ขอใช้งาน</h2></div>
+    <div class="small" style="color:var(--ink2)">แอปนี้ใช้ได้เฉพาะคนที่เจ้าของแอปอนุญาต ใส่ชื่อเล่นให้เจ้าของรู้ว่าเป็นใคร แล้วรออนุมัติ (ทำครั้งเดียวต่อเครื่อง)</div>
+    <div class="row mt"><input id="aName" maxlength="40" placeholder="ชื่อเล่น เช่น มิ้นท์" class="grow" value="${esc(st.name || '')}"><button class="btn pri" data-act="register">ขอใช้งาน</button></div><div class="muted small mt-s" id="aStatus"></div></div>`;
 }
 
 /* ============ VIEW: RESULT ============ */
@@ -406,6 +426,8 @@ function vSettings(){
   <div class="card"><div class="ch"><h2>🤖 เชื่อม AI (Apps Script)</h2>${ready() ? '<span class="muted small">✅ ตั้งแล้ว</span>' : ''}</div>
     <div class="stack"><label class="f">ลิงก์ Web app (ลงท้าย /exec)<input id="cUrl" value="${esc(st.cfg.url)}" placeholder="https://script.google.com/macros/s/.../exec" inputmode="url"></label>
     <label class="f">รหัสลับ (APP_TOKEN)<input id="cTok" type="password" value="${esc(st.cfg.token)}"></label>
+    <label class="f">รหัสผู้ดูแล (ADMIN_TOKEN) <span class="muted small">เฉพาะเจ้าของแอป คนอื่นเว้นว่าง</span><input id="cAdm" type="password" value="${esc(st.cfg.admin || '')}" autocomplete="off"></label>
+    <div class="muted small">สถานะเครื่องนี้: <b>${ready() ? ACCESS_TH[st.access] || 'ยังไม่ได้เช็ก' : '-'}</b>${st.name ? ' · ชื่อ ' + esc(st.name) : ''} · รหัสเครื่อง ${esc(st.dev.slice(0, 8))}…</div>
     <div class="row wrap"><button class="btn pri sm" data-act="testCfg">บันทึกและทดสอบ</button>${ready() ? '<button class="btn ghost sm" data-act="shareCfg">🔗 ส่งลิงก์ตั้งค่าให้เพื่อน</button>' : ''}</div>
     <div class="muted small" id="cStatus">วิธีตั้งค่าอยู่ใน README ของ repo menu บน GitHub · ส่งลิงก์ตั้งค่าให้เพื่อน = เพื่อนใช้โควตา AI ของคุณ</div></div></div>
   <div class="card"><div class="ch"><h2>🌍 ประเทศและสกุลเงิน</h2></div>
@@ -474,23 +496,35 @@ const A = {
   async testCfg(){ const url = $('#cUrl').value.trim(), token = $('#cTok').value.trim(), s = $('#cStatus');
     if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { s.textContent = '❌ ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/'; return; }
     if (!token) { s.textContent = '❌ ใส่รหัสลับด้วย'; return; }
-    const prev = st.cfg; st.cfg = {url, token}; s.textContent = '⏳ กำลังทดสอบ...';
+    const prev = st.cfg; st.cfg = {url, token, admin:$('#cAdm').value.trim()}; s.textContent = '⏳ กำลังทดสอบ...';
     try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู');
-      save(); s.textContent = '✅ เชื่อมต่อได้ พร้อมใช้งาน'; toast('ตั้งค่าเรียบร้อย'); setTimeout(() => go('home'), 700); }
+      st.access = d.access || 'legacy'; save(); s.textContent = '✅ เชื่อมต่อได้ · ' + ACCESS_TH[st.access]; toast(canScan() ? 'ตั้งค่าเรียบร้อย' : 'เชื่อมต่อได้ ต้องขอใช้งานก่อน'); setTimeout(() => go('home'), 700); }
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
   async shareCfg(){ const link = location.origin + location.pathname + '#setup=' + btoa(unescape(encodeURIComponent(JSON.stringify({u:st.cfg.url, t:st.cfg.token})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกดใช้การตั้งค่านี้\n' + link;
+    const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกด "ใช้เลย" ใส่ชื่อ แล้วรอเจ้าของอนุมัติ\n' + link;
     if (navigator.share) { try { await navigator.share({title:'แปลเมนู', text}); return; } catch {} }
     try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทาง LINE ได้'); } catch { toast('คัดลอกไม่ได้', 'bad'); } },
   retryScan(){ if (busy || !scan || !scan.retry) return; const img = scan.retry, ap = scan.retryAppend; scan.retry = null; scan.err = ''; runScan(img, ap); },
   cancelScan(){ if (scanAC) { scanAC.userCancel = true; scanAC.abort(); } },
   async quickTok(){ const token = $('#hTok').value.trim(), s = $('#hStatus'); if (!token) { s.textContent = 'ใส่รหัสลับก่อน'; return; }
-    const prev = st.cfg; st.cfg = {url:prev.url, token}; s.textContent = '⏳ กำลังทดสอบ...';
+    const prev = st.cfg; st.cfg = {...prev, token}; s.textContent = '⏳ กำลังทดสอบ...';
     try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์ Apps Script ไม่ใช่ของแอปแปลเมนู');
-      save(); toast('พร้อมใช้งาน ถ่ายเมนูได้เลย'); render(); }
+      st.access = d.access || 'legacy'; save(); toast(canScan() ? 'พร้อมใช้งาน ถ่ายเมนูได้เลย' : 'รหัสถูกต้อง ขอใช้งานต่อได้เลย'); render(); }
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
+  async register(){ const name = $('#aName').value.trim(), s = $('#aStatus'); if (!name) { s.textContent = 'ใส่ชื่อก่อน'; $('#aName').focus(); return; }
+    s.textContent = '⏳ กำลังส่งคำขอ...';
+    try { const d = await callAI({action:'register', name}, 30000); st.name = d.name || name; st.access = d.access || 'pending'; save(); render();
+      toast(canScan() ? 'อนุมัติแล้ว ใช้ได้เลย' : 'ส่งคำขอแล้ว รอเจ้าของอนุมัติ'); }
+    catch (e) { const el = $('#aStatus'); if (el) el.textContent = '❌ ' + e.message; } },
+  async checkAccess(){ await refreshAccess(true); },
   applyUpdate(){ applyUpdate(); }
 };
+async function refreshAccess(manual){
+  if (!ready()) return; const s = $('#aStatus'); if (s) s.textContent = '⏳';
+  try { const d = await callAI({action:'ping'}, 30000); const was = st.access; st.access = d.access || 'legacy'; if (d.name) st.name = d.name; save();
+    if (manual || was !== st.access) { render(); if (canScan() && was !== st.access) toast('✅ ได้รับอนุมัติแล้ว ใช้ได้เลย'); else if (manual) toast(ACCESS_TH[st.access] || st.access); } }
+  catch (e) { const el = $('#aStatus'); if (el) el.textContent = '❌ ' + e.message; }
+}
 
 /* ============ EVENTS ============ */
 document.addEventListener('click', e => {
@@ -501,16 +535,16 @@ document.addEventListener('click', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if ((el.id === 'fCam' || el.id === 'fGal') && el.files[0]) { const f = el.files[0]; el.value = ''; doScan(f); return; }
-  if (el.id === 'hTok') return;
+  if (el.id === 'hTok' || el.id === 'aName') return;
   if (el.id === 'cCountry') { st.country = el.value; st.curr = ''; save(); render(); return; }
   if (el.id === 'cCurr') { st.curr = el.value; save(); render(); return; }
 });
 // ยกเลิก "ถ่ายหน้าถัดไป" ถ้าผู้ใช้ปิดกล้องโดยไม่ถ่าย
 window.addEventListener('focus', () => setTimeout(() => { if (!busy) pendingAppend = false; }, 1500));
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'hTok') { A.quickTok(); return; } if (e.key !== 'Escape') return; if (!$('#big').hidden) { $('#big').hidden = true; return; } if (!$('#lb').hidden) { $('#lb').hidden = true; return; } if (S) closeSheet(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'hTok') { A.quickTok(); return; } if (e.key === 'Enter' && e.target.id === 'aName') { A.register(); return; } if (e.key !== 'Escape') return; if (!$('#big').hidden) { $('#big').hidden = true; return; } if (!$('#lb').hidden) { $('#lb').hidden = true; return; } if (S) closeSheet(); });
 window.addEventListener('storage', e => { if (e.key === TB_ACTIVE) render(); });
 window.addEventListener('online', render); window.addEventListener('offline', render);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') render(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') return; render(); if (st.access === 'pending') refreshAccess(false); });
 
 /* ============ UPDATE (service worker) ============ */
 let swReg = null, updating = false;
@@ -533,10 +567,11 @@ function setupSW(){
     history.replaceState(null, '', location.pathname + location.search);
     try { const b = m[1].replace(/-/g, '+').replace(/_/g, '/'); const o = JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))));
       if (o.u && o.t && await dialog({title:'ใช้การตั้งค่าจากลิงก์นี้?', text:'ลิงก์นี้ตั้งค่าการเชื่อม AI ให้อัตโนมัติ (ได้มาจากเพื่อนหรือเจ้าของแอป)', ok:'ใช้เลย'})) {
-        st.cfg = {url:String(o.u), token:String(o.t)}; save(); toast('ตั้งค่าเรียบร้อย ถ่ายเมนูได้เลย'); render(); }
+        st.cfg = {...st.cfg, url:String(o.u), token:String(o.t)}; st.access = ''; save(); render(); await refreshAccess(false); render(); toast(canScan() ? 'ตั้งค่าเรียบร้อย ถ่ายเมนูได้เลย' : 'ตั้งค่าแล้ว ใส่ชื่อเพื่อขอใช้งาน'); }
     } catch { toast('ลิงก์ตั้งค่าไม่ถูกต้อง', 'bad'); }
   }
   fetchRates().then(render); setupSW();
+  if (ready() && !['approved', 'owner'].includes(st.access)) refreshAccess(false);
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 })();
 </script>
