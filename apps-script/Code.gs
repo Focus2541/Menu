@@ -5,7 +5,8 @@
  * ตั้งค่าใน Project Settings → Script properties:
  *   GEMINI_API_KEY  (จำเป็น)  key จาก https://aistudio.google.com/apikey (ใช้ key เดียวกับแอปกินพอดีได้)
  *   APP_TOKEN       (จำเป็น)  รหัสลับที่ตั้งเอง ต้องตรงกับที่กรอกในแอป
- *   MODEL           (ไม่บังคับ) โมเดลอ่านเมนู ค่าเริ่มต้น gemini-flash-latest
+ *   MODEL           (ไม่บังคับ) โมเดลอ่านเมนู ค่าเริ่มต้น gemini-flash-lite-latest (เร็ว ~1–10 วิ)
+ *                   ใส่ gemini-flash-latest ถ้าอยากได้คำแปลละเอียดกว่า แต่บางช่วงช้ามาก (เคยวัดได้ 4 นาที)
  *   SIGN_MODEL      (ไม่บังคับ) โมเดลอ่านป้าย ค่าเริ่มต้น gemini-flash-lite-latest (เร็วกว่า)
  *   PER_HOUR        (ไม่บังคับ) จำกัดจำนวนรูปต่อชั่วโมง ค่าเริ่มต้น 40
  *
@@ -73,7 +74,7 @@ function menu_(req, props) {
       }
     }
   };
-  const r = ask_(body, props.getProperty('MODEL') || 'gemini-flash-latest', props);
+  const r = ask_(body, props.getProperty('MODEL') || 'gemini-flash-lite-latest', props);
   const out = r.json, s = str_;
   const lv = function (g, k) { return g.indexOf(k) >= 0 ? 'yes' : g.indexOf(k + '?') >= 0 ? 'maybe' : 'no'; };
   return {
@@ -188,7 +189,7 @@ function testSetup() {
   ['GEMINI_API_KEY', 'APP_TOKEN'].forEach(function (k) {
     Logger.log(k + ': ' + (props.getProperty(k) ? 'ตั้งแล้ว' : 'ยังไม่ได้ตั้ง'));
   });
-  [props.getProperty('MODEL') || 'gemini-flash-latest', props.getProperty('SIGN_MODEL') || 'gemini-flash-lite-latest'].forEach(function (m) {
+  [props.getProperty('MODEL') || 'gemini-flash-lite-latest', props.getProperty('SIGN_MODEL') || 'gemini-flash-lite-latest'].forEach(function (m) {
     const t0 = Date.now();
     const r = callGemini_({ contents: [{ parts: [{ text: 'ตอบคำว่า พร้อม' }] }], generationConfig: {} }, m, props);
     Logger.log(m + ' → ' + r.model + ' ' + JSON.stringify(r.think || 'ไม่ตั้งค่าคิด') + ': HTTP ' + r.code + ' ใน ' + ((Date.now() - t0) / 1000).toFixed(1) + ' วินาที');

@@ -25,7 +25,7 @@ API key อยู่ใน Google Apps Script เท่านั้น ไม่
 3. Project Settings (ไอคอนเฟือง) → Script properties → เพิ่ม
    - `GEMINI_API_KEY` = key จากข้อ 1
    - `APP_TOKEN` = รหัสลับที่ตั้งเอง เช่น ตัวอักษรสุ่ม 16 ตัว
-   - `MODEL` (ไม่ใส่ก็ได้) ค่าเริ่มต้น `gemini-flash-latest`
+   - `MODEL` (ไม่ใส่ก็ได้) ค่าเริ่มต้น `gemini-flash-lite-latest` (เร็ว) ใส่ `gemini-flash-latest` ถ้าอยากได้คำแปลละเอียดกว่าแต่อาจช้ามาก
    - `PER_HOUR` (ไม่ใส่ก็ได้) จำกัดรูปต่อชั่วโมง ค่าเริ่มต้น 40
 4. เลือกฟังก์ชัน `testSetup` แล้วกด Run → อนุญาตสิทธิ์ → ดู Execution log ว่าขึ้น ✅
 5. Deploy → New deployment → ประเภท Web app
