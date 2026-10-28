@@ -1,11 +1,11 @@
 /**
  * แปลเมนู — ตัวกลางอ่านเมนู/ป้ายด้วย Gemini (API key อยู่ที่นี่ ไม่อยู่ในแอป)
- * เวอร์ชันโค้ด 5: ต้องให้เจ้าของอนุมัติรายเครื่องก่อนใช้ ใช้รายชื่อเดียวกันทั้งแอปแปลเมนูและ TripBudget
- *   (ขอใช้งาน/เช็กสถานะไม่ต้องใช้รหัสลับ ส่วนการแปลด้วย AI ต้องมีทั้งรหัสลับและการอนุมัติ)
+ * เวอร์ชันโค้ด 6: ต้องให้เจ้าของอนุมัติรายเครื่องก่อนใช้ ใช้รายชื่อเดียวกันทั้งแอปแปลเมนูและ TripBudget
+ *   เครื่องที่อนุมัติแล้วแปลได้เลยไม่ต้องใช้รหัสลับ · คำขอมีรหัสยืนยัน 4 หลัก ชนิดเครื่อง และเตือนชื่อซ้ำ
  *
  * ตั้งค่าใน Project Settings → Script properties:
  *   GEMINI_API_KEY  (จำเป็น)  key จาก https://aistudio.google.com/apikey
- *   APP_TOKEN       (จำเป็น)  รหัสเข้าแอป (อยู่ในลิงก์ตั้งค่าที่ส่งให้เพื่อน)
+ *   APP_TOKEN       (ไม่จำเป็นแล้ว) ตั้งแต่เวอร์ชัน 6 ใช้การอนุมัติรายเครื่องแทน
  *   ADMIN_TOKEN     (จำเป็น)  รหัสผู้ดูแล ของเจ้าของคนเดียว ห้ามส่งให้ใคร ใส่ในแอปเครื่องตัวเองเพื่อใช้ได้ทันที
  *   OWNER_EMAIL     (ไม่บังคับ) อีเมลรับคำขออนุมัติ ค่าเริ่มต้น = อีเมลเจ้าของสคริปต์
  *   SHEET_ID        (ไม่บังคับ) ถ้าสคริปต์ไม่ได้สร้างจากใน Google Sheet ให้ใส่ ID ของชีตที่จะเก็บรายชื่อเครื่อง
@@ -21,7 +21,7 @@
  *   Execute as: Me   |   Who has access: Anyone
  */
 
-const CODE_VERSION = 5;
+const CODE_VERSION = 6;
 const APPS = { menu: 'แปลเมนู', tripbudget: 'TripBudget' };
 const MAX_IMAGE_CHARS = 5 * 1024 * 1024;
 const ALLERGENS = ['ไข่', 'นม', 'ถั่วลิสง', 'ถั่วเปลือกแข็ง', 'แป้งสาลี', 'ถั่วเหลือง', 'กุ้ง/ปู', 'หอย', 'ปลา', 'งา'];
@@ -29,7 +29,7 @@ const ALLERGENS = ['ไข่', 'นม', 'ถั่วลิสง', 'ถั่
 const TAGS = ['pork', 'pork?', 'beef', 'beef?', 'chicken', 'chicken?', 'seafood', 'seafood?', 'alcohol', 'alcohol?', 'veg'];
 
 const DEV_SHEET = 'เครื่องที่ใช้งาน';
-const COLS = ['รหัสเครื่อง', 'ชื่อ', 'สถานะ', 'ขอเมื่อ', 'ใช้ล่าสุด', 'วันนี้', 'วันที่นับ', 'รวม', 'จำกัดต่อวัน', 'หมายเหตุ', 'key'];
+const COLS = ['รหัสเครื่อง', 'ชื่อ', 'สถานะ', 'ขอเมื่อ', 'ใช้ล่าสุด', 'วันนี้', 'วันที่นับ', 'รวม', 'จำกัดต่อวัน', 'หมายเหตุ', 'key', 'รหัสยืนยัน', 'เครื่อง'];
 const ST = { pending: 'รออนุมัติ', approved: 'อนุมัติ', denied: 'ไม่อนุมัติ', off: 'ปิด' };
 const ST_CODE = { 'รออนุมัติ': 'pending', 'อนุมัติ': 'approved', 'ไม่อนุมัติ': 'denied', 'ปิด': 'off' };
 
@@ -38,10 +38,7 @@ function doPost(e) {
   try {
     const props = PropertiesService.getScriptProperties();
     const req = JSON.parse((e && e.postData && e.postData.contents) || '{}');
-    const gate = req.action === 'ping' || req.action === 'register'; // ขอใช้งาน/เช็กสถานะ ไม่ต้องใช้รหัสลับ
-    if (!gate && (!props.getProperty('APP_TOKEN') || req.token !== props.getProperty('APP_TOKEN'))) {
-      return json_({ ok: false, error: 'รหัสลับไม่ถูกต้อง' });
-    }
+    // ตั้งแต่เวอร์ชัน 6 ไม่ต้องใช้รหัสลับ (APP_TOKEN) แล้ว สิทธิ์ดูจากการอนุมัติรายเครื่องอย่างเดียว
     const appName = APPS[req.app] ? req.app : 'menu';
     const tokenOk = !!props.getProperty('APP_TOKEN') && req.token === props.getProperty('APP_TOKEN');
     const admin = !!props.getProperty('ADMIN_TOKEN') && req.admin === props.getProperty('ADMIN_TOKEN');
@@ -50,9 +47,9 @@ function doPost(e) {
 
     if (req.action === 'ping') {
       const d = admin ? null : findDev_(dev);
-      return json_({ ok: true, app: 'menu', version: CODE_VERSION, access: admin ? 'owner' : d ? d.code : 'new', name: d ? d.name : '', token: tokenOk });
+      return json_({ ok: true, app: 'menu', version: CODE_VERSION, access: admin ? 'owner' : d ? d.code : 'new', name: d ? d.name : '', verify: d && d.code === 'pending' ? d.verify : '', token: tokenOk, open: true });
     }
-    if (req.action === 'register') return json_(register_(dev, req.name, props, appName));
+    if (req.action === 'register') return json_(register_(dev, req.name, props, appName, req.ua));
     if (req.action !== 'menu') return json_({ ok: false, error: 'ไม่รู้จักคำสั่ง' });
 
     if (!admin) {
@@ -103,6 +100,8 @@ function devSheet_() {
     sh.appendRow(COLS); sh.setFrozenRows(1); sh.getRange(1, 1, 1, COLS.length).setFontWeight('bold').setBackground('#fff1e8');
     sh.getRange('C2:C').setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList([ST.pending, ST.approved, ST.denied, ST.off], true).build());
     sh.setColumnWidth(1, 120); sh.setColumnWidth(2, 140); sh.hideColumns(11);
+  } else if (sh.getLastColumn() < COLS.length) {
+    sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight('bold').setBackground('#fff1e8'); // ชีตจากเวอร์ชันก่อน: เติมหัวคอลัมน์ใหม่
   }
   return sh;
 }
@@ -111,27 +110,33 @@ function findDev_(dev) {
   const rows = devSheet_().getDataRange().getValues(), today = today_();
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] === dev) {
-      return { row: i + 1, name: rows[i][1], code: ST_CODE[rows[i][2]] || 'pending', limit: rows[i][8],
+      return { row: i + 1, name: rows[i][1], code: ST_CODE[rows[i][2]] || 'pending', limit: rows[i][8], verify: String(rows[i][11] || ''),
         todayCount: String(rows[i][6]) === today ? Number(rows[i][5]) || 0 : 0 };
     }
   }
   return null;
 }
-function register_(dev, name, props, appName) {
+function register_(dev, name, props, appName, ua) {
   name = String(name || '').replace(/[<>]/g, '').trim().slice(0, 40);
   if (!name) return { ok: false, error: 'ใส่ชื่อก่อน' };
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
     const found = findDev_(dev);
-    if (found) return { ok: true, access: found.code, name: found.name };
+    if (found) return { ok: true, access: found.code, name: found.name, verify: found.code === 'pending' ? found.verify : '' };
     // กันคนส่งคำขอรัวๆ จนอีเมลเต็ม: ไม่เกิน 10 คำขอต่อชั่วโมง
     const cache = CacheService.getScriptCache(), k = 'reg_' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMddHH');
     const n = Number(cache.get(k) || 0); if (n >= 10) return { ok: false, error: 'มีคำขอเยอะเกินไป ลองใหม่ภายหลัง' };
     cache.put(k, String(n + 1), 3700);
     const key = Utilities.getUuid().replace(/-/g, '');
-    devSheet_().appendRow([dev, name, ST.pending, new Date(), '', 0, '', 0, '', 'ขอจาก ' + APPS[appName], key]);
-    notify_(dev, name, key, props, appName);
-    return { ok: true, access: 'pending', name: name };
+    const verify = String(1000 + Math.floor(Math.random() * 9000)); // รหัสยืนยัน 4 หลัก ขึ้นที่จอผู้ขอและในอีเมล
+    ua = String(ua || '').replace(/[<>]/g, '').slice(0, 60);
+    // ชื่อซ้ำ: นับเครื่องอื่นที่ใช้ชื่อเดียวกัน (ไม่สนตัวพิมพ์/ช่องว่าง)
+    const norm = function (x) { return String(x || '').replace(/\s+/g, '').toLowerCase(); };
+    const dups = devSheet_().getDataRange().getValues().slice(1).filter(function (r) { return norm(r[1]) === norm(name); })
+      .map(function (r) { return (r[2] || ST.pending) + (r[12] ? ' · ' + r[12] : ''); });
+    devSheet_().appendRow([dev, name, ST.pending, new Date(), '', 0, '', 0, '', 'ขอจาก ' + APPS[appName] + (dups.length ? ' · ⚠️ ชื่อซ้ำ' : ''), key, "'" + verify, ua]);
+    notify_(dev, name, key, props, appName, verify, ua, dups);
+    return { ok: true, access: 'pending', name: name, verify: verify };
   } finally { lock.releaseLock(); }
 }
 function countUse_(dev) {
@@ -142,7 +147,7 @@ function countUse_(dev) {
     sh.getRange(d.row, 5, 1, 4).setValues([[new Date(), d.todayCount + 1, today_(), Number(sh.getRange(d.row, 8).getValue() || 0) + 1]]);
   } finally { lock.releaseLock(); }
 }
-function notify_(dev, name, key, props, appName) {
+function notify_(dev, name, key, props, appName, verify, ua, dups) {
   const to = props.getProperty('OWNER_EMAIL') || Session.getEffectiveUser().getEmail();
   const url = ScriptApp.getService().getUrl();
   if (!to || !url) return;
@@ -150,6 +155,9 @@ function notify_(dev, name, key, props, appName) {
   MailApp.sendEmail({
     to: to, subject: APPS[appName || 'menu'] + ': "' + name + '" ขอใช้งาน',
     htmlBody: '<p style="font-size:16px"><b>' + name + '</b> ขอใช้แอป ' + APPS[appName || 'menu'] + ' (อนุมัติแล้วใช้ได้ทั้ง TripBudget และแปลเมนู)</p>' +
+      '<p style="font-size:15px">รหัสยืนยัน <b style="font-size:26px;letter-spacing:4px;color:#c2410c">' + verify + '</b><br><span style="color:#777;font-size:13px">ถามเพื่อนทาง LINE ว่าหน้าจอขึ้นรหัสอะไร ตรงกันค่อยกดอนุมัติ</span></p>' +
+      (dups && dups.length ? '<p style="background:#fdecec;color:#cf3434;padding:10px 12px;border-radius:8px;font-size:14px">⚠️ มีชื่อ "' + name + '" อยู่แล้ว ' + dups.length + ' เครื่อง (' + dups.join(', ') + ')<br>อาจเป็นเพื่อนเปลี่ยนมือถือ/ล้างข้อมูล หรือคนอื่นใช้ชื่อซ้ำ ให้เช็กรหัสยืนยันก่อน</p>' : '') +
+      '<p style="color:#555;font-size:13px">เครื่อง: ' + (ua || 'ไม่ทราบ') + ' · ขอเมื่อ ' + Utilities.formatDate(new Date(), 'Asia/Bangkok', 'd MMM HH:mm') + ' น.</p>' +
       '<p><a href="' + link('approve') + '" style="background:#16834a;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">✅ อนุมัติ</a> &nbsp; ' +
       '<a href="' + link('deny') + '" style="background:#cf3434;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">⛔ ไม่อนุมัติ</a></p>' +
       '<p style="color:#777;font-size:13px">ถ้าไม่รู้จักชื่อนี้ แปลว่าลิงก์ตั้งค่าถูกส่งต่อ กดไม่อนุมัติได้เลย · จัดการทั้งหมดได้ที่ชีต "' + DEV_SHEET + '"</p>'
@@ -303,7 +311,7 @@ function json_(obj) {
 /** กด Run ฟังก์ชันนี้เพื่ออนุญาตสิทธิ์ เช็ก key และดูว่าโมเดลตอบเร็วแค่ไหน */
 function testSetup() {
   const props = PropertiesService.getScriptProperties();
-  ['GEMINI_API_KEY', 'APP_TOKEN', 'ADMIN_TOKEN'].forEach(function (k) {
+  ['GEMINI_API_KEY', 'ADMIN_TOKEN'].forEach(function (k) {
     Logger.log(k + ': ' + (props.getProperty(k) ? 'ตั้งแล้ว' : 'ยังไม่ได้ตั้ง'));
   });
   [props.getProperty('MODEL') || 'gemini-flash-lite-latest', props.getProperty('SIGN_MODEL') || 'gemini-flash-lite-latest'].forEach(function (m) {

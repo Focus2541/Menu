@@ -200,7 +200,12 @@ async function fetchRates(){
 }
 
 /* ============ AI (Google Apps Script → Gemini) ============ */
-const ready = () => !!(st.cfg.url && st.cfg.token);
+const ready = () => !!st.cfg.url; // ตั้งแต่ v1.4 ไม่ต้องใช้รหัสลับ สิทธิ์ดูจากการอนุมัติรายเครื่อง
+const uaShort = () => { const u = navigator.userAgent;
+  const os = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' + ((u.match(/Android [\d.]+; ([^;)]+)/) || [])[1] ? ' ' + u.match(/Android [\d.]+; ([^;)]+)/)[1].replace(/ Build.*/, '') : '') : /Windows/.test(u) ? 'Windows' : /Mac OS/.test(u) ? 'Mac' : 'อื่นๆ';
+  const br = /Line\//.test(u) ? 'LINE' : /SamsungBrowser/.test(u) ? 'Samsung' : /CriOS|Chrome/.test(u) ? 'Chrome' : /Safari/.test(u) ? 'Safari' : /Firefox/.test(u) ? 'Firefox' : '';
+  return (os + (br ? ' · ' + br : '')).slice(0, 60); };
+
 // สิทธิ์ของเครื่องนี้: new ยังไม่ขอ · pending รออนุมัติ · approved/owner ใช้ได้ · denied/off ใช้ไม่ได้ · legacy สคริปต์เก่าที่ไม่มีระบบอนุมัติ
 const canScan = () => ready() && ['approved', 'owner', 'legacy'].includes(st.access);
 // รหัสเครื่องและรหัสผู้ดูแลใช้ร่วมกับ TripBudget (โดเมนเดียวกัน) อนุมัติครั้งเดียวใช้ได้ทั้งสองแอป
@@ -294,6 +299,7 @@ function vHome(){
 function accessCard(){
   const a = st.access || 'new';
   if (a === 'pending') return `<div class="card" style="border-color:var(--warn)"><div class="ch"><h2>⏳ รอเจ้าของแอปอนุมัติ</h2></div>
+    ${st.verify ? `<div style="text-align:center;margin:4px 0 10px"><div class="muted small">รหัสยืนยัน</div><b class="num" style="font-size:34px;letter-spacing:6px;color:var(--acc)">${esc(st.verify)}</b><div class="small" style="color:var(--ink2)">บอกรหัสนี้กับเจ้าของแอปทาง LINE</div></div>` : ''}
     <div class="small" style="color:var(--ink2)">ส่งคำขอในชื่อ <b>${esc(st.name || '')}</b> แล้ว เจ้าของแอปจะได้อีเมลให้กดอนุมัติ พออนุมัติแล้วกดเช็กสถานะ</div>
     <button class="btn pri sm mt" data-act="checkAccess">🔄 เช็กสถานะ</button><span class="muted small" id="aStatus" style="margin-left:8px"></span></div>`;
   if (a === 'denied' || a === 'off') return `<div class="card" style="border-color:var(--bad)"><div class="ch"><h2>⛔ เครื่องนี้ใช้งานไม่ได้</h2></div>
@@ -431,11 +437,11 @@ function vSettings(){
   return `<div class="row" style="margin-bottom:12px"><h1 class="grow">⚙️ ตั้งค่า</h1><button class="btn ghost sm" data-act="home">เสร็จ</button></div>
   <div class="card"><div class="ch"><h2>🤖 เชื่อม AI (Apps Script)</h2>${ready() ? '<span class="muted small">✅ ตั้งแล้ว</span>' : ''}</div>
     <div class="stack"><label class="f">ลิงก์ Web app (ลงท้าย /exec)<input id="cUrl" value="${esc(st.cfg.url)}" placeholder="https://script.google.com/macros/s/.../exec" inputmode="url"></label>
-    <label class="f">รหัสลับ (APP_TOKEN)<input id="cTok" type="password" value="${esc(st.cfg.token)}"></label>
+    <label class="f">รหัสลับ (APP_TOKEN) <span class="muted small">ไม่จำเป็นแล้ว เว้นว่างได้</span><input id="cTok" type="password" value="${esc(st.cfg.token)}"></label>
     <label class="f">รหัสผู้ดูแล (ADMIN_TOKEN) <span class="muted small">เฉพาะเจ้าของแอป คนอื่นเว้นว่าง</span><input id="cAdm" type="password" value="${esc(st.cfg.admin || '')}" autocomplete="off"></label>
     <div class="muted small">สถานะเครื่องนี้: <b>${ready() ? ACCESS_TH[st.access] || 'ยังไม่ได้เช็ก' : '-'}</b>${st.name ? ' · ชื่อ ' + esc(st.name) : ''} · รหัสเครื่อง ${esc(st.dev.slice(0, 8))}…</div>
     <div class="row wrap"><button class="btn pri sm" data-act="testCfg">บันทึกและทดสอบ</button>${ready() ? '<button class="btn ghost sm" data-act="shareCfg">🔗 ส่งลิงก์ตั้งค่าให้เพื่อน</button>' : ''}</div>
-    <div class="muted small" id="cStatus">วิธีตั้งค่าอยู่ใน README ของ repo menu บน GitHub · ส่งลิงก์ตั้งค่าให้เพื่อน = เพื่อนใช้โควตา AI ของคุณ</div></div></div>
+    <div class="muted small" id="cStatus">วิธีตั้งค่าอยู่ใน README ของ repo menu บน GitHub · เพื่อนที่คุณอนุมัติใช้โควตา AI ของคุณ</div></div></div>
   <div class="card"><div class="ch"><h2>🌍 ประเทศและสกุลเงิน</h2></div>
     <div class="stack"><label class="f">ประเทศ<select id="cCountry"><option value="">ตามทริปใน TripBudget${t && COUNTRIES[t.country] ? ' (' + COUNTRIES[t.country][1] + ')' : ''}</option>${Object.entries(COUNTRIES).map(([k, v]) => `<option value="${k}" ${st.country === k ? 'selected' : ''}>${v[0]} ${v[1]}</option>`).join('')}</select></label>
     <label class="f">สกุลเงินในเมนู<select id="cCurr"><option value="">อัตโนมัติ (${c.C[2]})</option>${Object.keys(SYM).map(k => `<option ${st.curr === k ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
@@ -501,13 +507,12 @@ const A = {
       <div class="sf"><button class="btn ghost" data-act="closeSheet">อยู่ที่นี่ต่อ</button><span class="sp"></span><a class="btn pri" href="${TB_URL}">เปิด TripBudget</a></div>`); },
   async testCfg(){ const url = $('#cUrl').value.trim(), token = $('#cTok').value.trim(), s = $('#cStatus');
     if (!/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) { s.textContent = '❌ ลิงก์ต้องขึ้นต้นด้วย https://script.google.com/'; return; }
-    if (!token) { s.textContent = '❌ ใส่รหัสลับด้วย'; return; }
     const prev = st.cfg; st.cfg = {url, token, admin:$('#cAdm').value.trim()}; s.textContent = '⏳ กำลังทดสอบ...';
-    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู'); if (d.token === false) throw new Error('รหัสลับไม่ถูกต้อง'); setAdmin(st.cfg.admin);
+    try { const d = await callAI({action:'ping'}, 30000); if (d.app !== 'menu') throw new Error('ลิงก์นี้เป็น Apps Script ของแอปอื่น ต้องใช้โค้ดจากโฟลเดอร์ apps-script ของแอปแปลเมนู'); if (d.token === false && !d.open && token) throw new Error('รหัสลับไม่ถูกต้อง'); setAdmin(st.cfg.admin);
       st.access = d.access || 'legacy'; save(); s.textContent = '✅ เชื่อมต่อได้ · ' + ACCESS_TH[st.access]; toast(canScan() ? 'ตั้งค่าเรียบร้อย' : 'เชื่อมต่อได้ ต้องขอใช้งานก่อน'); setTimeout(() => go('home'), 700); }
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
-  async shareCfg(){ const link = location.origin + location.pathname + '#setup=' + btoa(unescape(encodeURIComponent(JSON.stringify({u:st.cfg.url, t:st.cfg.token})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    const text = 'ลิงก์ตั้งค่าแอปแปลเมนู กดเปิดใน Chrome แล้วกด "ใช้เลย" ใส่ชื่อ แล้วรอเจ้าของอนุมัติ\n' + link;
+  async shareCfg(){ const link = location.origin + location.pathname + '#setup=' + btoa(unescape(encodeURIComponent(JSON.stringify({u:st.cfg.url})))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const text = 'ลิงก์แอปแปลเมนู เปิดใน Chrome ใส่ชื่อ แล้วรอเจ้าของอนุมัติ\n' + link;
     if (navigator.share) { try { await navigator.share({title:'แปลเมนู', text}); return; } catch {} }
     try { await navigator.clipboard.writeText(link); toast('คัดลอกลิงก์แล้ว ส่งให้เพื่อนทาง LINE ได้'); } catch { toast('คัดลอกไม่ได้', 'bad'); } },
   retryScan(){ if (busy || !scan || !scan.retry) return; const img = scan.retry, ap = scan.retryAppend; scan.retry = null; scan.err = ''; runScan(img, ap); },
@@ -519,7 +524,7 @@ const A = {
     catch (e) { st.cfg = prev; s.textContent = '❌ ' + e.message; } },
   async register(){ const name = $('#aName').value.trim(), s = $('#aStatus'); if (!name) { s.textContent = 'ใส่ชื่อก่อน'; $('#aName').focus(); return; }
     s.textContent = '⏳ กำลังส่งคำขอ...';
-    try { const d = await callAI({action:'register', name}, 30000); st.name = d.name || name; st.access = d.access || 'pending'; save(); render();
+    try { const d = await callAI({action:'register', name, ua:uaShort()}, 30000); st.name = d.name || name; st.access = d.access || 'pending'; st.verify = d.verify || ''; save(); render();
       toast(canScan() ? 'อนุมัติแล้ว ใช้ได้เลย' : 'ส่งคำขอแล้ว รอเจ้าของอนุมัติ'); }
     catch (e) { const el = $('#aStatus'); if (el) el.textContent = '❌ ' + e.message; } },
   async checkAccess(){ await refreshAccess(true); },
@@ -527,7 +532,8 @@ const A = {
 };
 async function refreshAccess(manual){
   if (!ready()) return; const s = $('#aStatus'); if (s) s.textContent = '⏳';
-  try { const d = await callAI({action:'ping'}, 30000); const was = st.access; st.access = d.access || 'legacy'; if (d.name) st.name = d.name; save();
+  const was = st.access;
+  try { const d = await callAI({action:'ping'}, 30000); st.access = d.access || 'legacy'; if (d.name) st.name = d.name; st.verify = d.verify || ''; save();
     if (manual || was !== st.access) { render(); if (canScan() && was !== st.access) toast('✅ ได้รับอนุมัติแล้ว ใช้ได้เลย'); else if (manual) toast(ACCESS_TH[st.access] || st.access); } }
   catch (e) { const el = $('#aStatus'); if (el) el.textContent = '❌ ' + e.message; }
 }
@@ -572,8 +578,8 @@ function setupSW(){
   if (m) {
     history.replaceState(null, '', location.pathname + location.search);
     try { const b = m[1].replace(/-/g, '+').replace(/_/g, '/'); const o = JSON.parse(decodeURIComponent(escape(atob(b + '==='.slice((b.length + 3) % 4)))));
-      if (o.u && o.t && await dialog({title:'ใช้การตั้งค่าจากลิงก์นี้?', text:'ลิงก์นี้ตั้งค่าการเชื่อม AI ให้อัตโนมัติ (ได้มาจากเพื่อนหรือเจ้าของแอป)', ok:'ใช้เลย'})) {
-        st.cfg = {...st.cfg, url:String(o.u), token:String(o.t)}; st.access = ''; save(); render(); await refreshAccess(false); render(); toast(canScan() ? 'ตั้งค่าเรียบร้อย ถ่ายเมนูได้เลย' : 'ตั้งค่าแล้ว ใส่ชื่อเพื่อขอใช้งาน'); }
+      if (o.u && await dialog({title:'ใช้การตั้งค่าจากลิงก์นี้?', text:'ลิงก์นี้ตั้งค่าการเชื่อม AI ให้อัตโนมัติ (ได้มาจากเพื่อนหรือเจ้าของแอป)', ok:'ใช้เลย'})) {
+        st.cfg = {...st.cfg, url:String(o.u), token:o.t ? String(o.t) : st.cfg.token}; st.access = ''; save(); render(); await refreshAccess(false); render(); toast(canScan() ? 'ตั้งค่าเรียบร้อย ถ่ายเมนูได้เลย' : 'ตั้งค่าแล้ว ใส่ชื่อเพื่อขอใช้งาน'); }
     } catch { toast('ลิงก์ตั้งค่าไม่ถูกต้อง', 'bad'); }
   }
   fetchRates().then(render); setupSW();
